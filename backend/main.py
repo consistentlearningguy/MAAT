@@ -15,8 +15,30 @@ from backend.api.cases import router as cases_router
 from backend.api.sync import router as sync_router
 from backend.api.investigations import router as investigations_router, cleanup_stale_investigations
 from backend.api.faces import router as faces_router
+from backend.models.case import MissingCase
 
 BACKEND_DIR = Path(__file__).resolve().parent
+
+
+async def _initial_sync_if_empty():
+    """Run initial data sync if the database has no cases (fresh deploy)."""
+    db = next(get_db())
+    try:
+        case_count = db.query(MissingCase).count()
+        if case_count == 0:
+            logger.info("No cases in database — running initial sync from MCSC...")
+            from backend.ingestion.mcsc_client import mcsc_client
+            result = await mcsc_client.sync_all_cases()
+            logger.info(
+                f"Initial sync complete: {result['added']} cases added, "
+                f"{result['photos_downloaded']} photos downloaded."
+            )
+        else:
+            logger.info(f"Database has {case_count} cases — skipping initial sync.")
+    except Exception as e:
+        logger.error(f"Initial sync failed (will retry on next scheduled sync): {e}")
+    finally:
+        db.close()
 
 
 @asynccontextmanager
@@ -34,6 +56,9 @@ async def lifespan(app: FastAPI):
             logger.info(f"Cleaned up {cleaned} stale investigation(s) from previous session.")
     finally:
         db.close()
+
+    # Auto-sync on first deploy (empty DB)
+    await _initial_sync_if_empty()
 
     start_scheduler()
     yield

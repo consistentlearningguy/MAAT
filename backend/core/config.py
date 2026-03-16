@@ -28,9 +28,9 @@ class Settings:
     SYNC_INTERVAL_MINUTES: int = int(os.getenv("SYNC_INTERVAL_MINUTES", "60"))
 
     # Server
-    HOST: str = os.getenv("HOST", "127.0.0.1")
+    HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
-    DEBUG: bool = os.getenv("DEBUG", "true").lower() in ("true", "1", "yes")
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 
     # Paths
     DATA_DIR: Path = PROJECT_ROOT / "data"
