@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Case Detail - OSINT Missing Persons Canada{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-full overflow-y-auto">
+    <!-- Loading state -->
+    <div id="caseLoading" class="flex items-center justify-center h-64">
+        <div class="text-gray-400">Loading case details...</div>
+    </div>
+
+    <!-- Case content (hidden until loaded) -->
+    <div id="caseContent" class="hidden">
+        <!-- Header -->
+        <div class="bg-dark-800 border-b border-gray-700 px-6 py-4">
+            <div class="flex items-start space-x-4">
+                <a href="/" class="text-gray-400 hover:text-white mt-1 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <div class="flex-1">
+                    <div class="flex items-center space-x-3">
+                        <h1 id="caseName" class="text-2xl font-bold text-white"></h1>
+                        <span id="caseStatusBadge" class="px-2 py-0.5 rounded text-xs font-medium"></span>
+                    </div>
+                    <p id="caseSubline" class="text-gray-400 mt-1 text-sm"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Left: Details -->
+            <div class="flex-1 p-6 overflow-y-auto">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Photo -->
+                    <div>
+                        <div class="bg-dark-800 rounded-lg border border-gray-700 p-4">
+                            <h2 class="text-sm font-semibold text-gray-400 uppercase mb-3">Photo</h2>
+                            <div id="casePhoto" class="flex justify-center">
+                                <div class="w-64 h-80 bg-dark-700 rounded flex items-center justify-center text-gray-500">
+                                    No photo available
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Face Crops (Phase 3) -->
+                        <div id="faceCropsSection" class="hidden bg-dark-800 rounded-lg border border-gray-700 p-4 mt-4">
+                            <h2 class="text-sm font-semibold text-gray-400 uppercase mb-3">Detected Faces</h2>
+                            <div id="faceCrops" class="flex flex-wrap gap-2"></div>
+                            <div id="faceInfo" class="text-xs text-gray-500 mt-2"></div>
+                        </div>
+                    </div>
+
+                    <!-- Physical Description -->
+                    <div>
+                        <div class="bg-dark-800 rounded-lg border border-gray-700 p-4">
+                            <h2 class="text-sm font-semibold text-gray-400 uppercase mb-3">Physical Description</h2>
+                            <dl id="caseDetails" class="space-y-2 text-sm">
+                            </dl>
+                        </div>
+
+                        <!-- Authority Contact -->
+                        <div class="bg-dark-800 rounded-lg border border-gray-700 p-4 mt-4">
+                            <h2 class="text-sm font-semibold text-gray-400 uppercase mb-3">Authority Contact</h2>
+                            <dl id="authorityDetails" class="space-y-2 text-sm">
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description / Circumstances -->
+                <div class="bg-dark-800 rounded-lg border border-gray-700 p-4 mt-6">
+                    <h2 class="text-sm font-semibold text-gray-400 uppercase mb-3">Circumstances</h2>
+                    <div id="caseDescription" class="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap"></div>
+                </div>
+
+                <!-- Intelligence Leads (Phase 2) -->
+                <div class="bg-dark-800 rounded-lg border border-gray-700 p-4 mt-6" id="investigationSection">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-sm font-semibold text-gray-400 uppercase">Intelligence Leads</h2>
+                        <div class="flex items-center space-x-2">
+                            <span id="investigationStatus" class="text-xs text-gray-500 hidden"></span>
+                            <button id="investigateBtn"
+                                onclick="triggerInvestigation({{ objectid }})"
+                                class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition">
+                                Run Investigation
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Investigation summary bar -->
+                    <div id="investigationSummary" class="hidden mb-4">
+                        <div class="flex items-center space-x-4 text-xs">
+                            <div class="flex items-center space-x-1">
+                                <span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+                                <span class="text-gray-400">Total: <span id="leadCountTotal" class="text-white font-medium">0</span></span>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+                                <span class="text-gray-400">High: <span id="leadCountHigh" class="text-white font-medium">0</span></span>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <span class="w-2 h-2 rounded-full bg-yellow-500 inline-block"></span>
+                                <span class="text-gray-400">Medium: <span id="leadCountMedium" class="text-white font-medium">0</span></span>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <span class="w-2 h-2 rounded-full bg-gray-500 inline-block"></span>
+                                <span class="text-gray-400">Low: <span id="leadCountLow" class="text-white font-medium">0</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lead type filter tabs -->
+                    <div id="leadFilters" class="hidden mb-3 flex items-center space-x-1 border-b border-gray-700 pb-2">
+                        <button class="lead-filter-tab active" data-filter="all" onclick="filterLeads('all', this)">All</button>
+                        <button class="lead-filter-tab" data-filter="username_hit" onclick="filterLeads('username_hit', this)">Usernames</button>
+                        <button class="lead-filter-tab" data-filter="news_article" onclick="filterLeads('news_article', this)">News</button>
+                        <button class="lead-filter-tab" data-filter="web_mention" onclick="filterLeads('web_mention', this)">Web</button>
+                        <button class="lead-filter-tab" data-filter="forum_post" onclick="filterLeads('forum_post', this)">Forums</button>
+                        <button class="lead-filter-tab" data-filter="face_match" onclick="filterLeads('face_match', this)">Faces</button>
+                    </div>
+
+                    <!-- Leads list -->
+                    <div id="leadsList" class="space-y-2">
+                        <p class="text-xs text-gray-500 py-4 text-center" id="leadsPlaceholder">
+                            Click "Run Investigation" to search for digital footprints, web mentions, and social media activity.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Map -->
+            <div class="w-96 border-l border-gray-700 flex-shrink-0">
+                <div class="p-4">
+                    <h2 class="text-sm font-semibold text-gray-400 uppercase mb-3">Last Known Location</h2>
+                </div>
+                <div id="detailMap" class="w-full" style="height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Not found state -->
+    <div id="caseNotFound" class="hidden flex items-center justify-center h-64">
+        <div class="text-center">
+            <div class="text-red-400 text-lg font-bold">Case Not Found</div>
+            <a href="/" class="text-blue-400 hover:underline text-sm mt-2 block">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        loadCaseDetail({{ objectid }});
+    });
+</script>
+{% endblock %}

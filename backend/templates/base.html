@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}OSINT Missing Persons Canada{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'dark': {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            700: '#1e293b',
+                            800: '#0f172a',
+                            900: '#0a0e1a',
+                            950: '#060810',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+
+    {% block head %}{% endblock %}
+</head>
+<body class="h-full bg-dark-900 text-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-dark-800 border-b border-gray-700 px-4 py-3">
+        <div class="max-w-full mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+                <a href="/" class="text-lg font-bold text-white hover:text-red-400 transition">
+                    OSINT Missing Persons Canada
+                </a>
+            </div>
+            <div class="flex items-center space-x-4 text-sm">
+                <a href="/" class="text-gray-300 hover:text-white transition">Dashboard</a>
+                <span class="text-gray-600">|</span>
+                <span class="text-gray-500 text-xs">
+                    Data source: <a href="https://mcsc.ca" target="_blank" class="text-blue-400 hover:underline">MCSC</a>
+                </span>
+                <button id="syncBtn" onclick="triggerSync()" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium transition">
+                    Sync Now
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="h-[calc(100vh-56px)]">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- App JS -->
+    <script src="/static/js/app.js"></script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
