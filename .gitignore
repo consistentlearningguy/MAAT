@@ -33,6 +33,8 @@ data/images/*
 # Logs
 logs/
 *.log
+tmp-*.out
+tmp-*.err
 
 # OS
 .DS_Store

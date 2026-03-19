@@ -12,9 +12,14 @@ load_dotenv(PROJECT_ROOT / ".env")
 class Settings:
     """Application settings."""
 
+    # Paths
+    DATA_DIR: Path = Path(os.getenv("DATA_DIR", str(PROJECT_ROOT / "data")))
+    IMAGES_DIR: Path = DATA_DIR / "images"
+    FACES_DIR: Path = DATA_DIR / "faces"
+
     # Database
     DATABASE_URL: str = os.getenv(
-        "DATABASE_URL", f"sqlite:///{PROJECT_ROOT / 'data' / 'db.sqlite'}"
+        "DATABASE_URL", f"sqlite:///{DATA_DIR / 'db.sqlite'}"
     )
 
     # MCSC ArcGIS FeatureServer
@@ -31,11 +36,6 @@ class Settings:
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
-
-    # Paths
-    DATA_DIR: Path = PROJECT_ROOT / "data"
-    IMAGES_DIR: Path = DATA_DIR / "images"
-    FACES_DIR: Path = DATA_DIR / "faces"
 
     # Face recognition (Phase 3)
     # Detection model: "hog" (faster, CPU) or "cnn" (more accurate, GPU recommended)

@@ -12,11 +12,18 @@ An open-source intelligence (OSINT) platform designed to help locate missing chi
 
 ## Live Dashboard
 
-**[VIEW LIVE DASHBOARD](https://osint-missing-persons-ca-production.up.railway.app)**
+Deploy this repository to Railway and use the generated service URL for the live dashboard.
 
-The dashboard shows all active missing children cases across Canada on an interactive map, with case details, photos, and investigation tools.
+The dashboard shows active missing children cases across Canada on an interactive map, with case details, photos, and investigation tools.
 
-API documentation (Swagger UI): [Live API Docs](https://osint-missing-persons-ca-production.up.railway.app/docs)
+API documentation is available at `/docs` on the deployed service URL.
+
+For a stable public deployment:
+
+- Mount a persistent volume and set `DATA_DIR=/data`
+- Set `DATABASE_URL=sqlite:////data/db.sqlite`
+- Keep Railway healthchecks pointed at `/healthz`
+- After deploy, replace this section with your live dashboard URL (or a custom domain) so the GitHub README link always works
 
 ---
 

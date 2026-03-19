@@ -1,5 +1,6 @@
 """FastAPI application entrypoint."""
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -41,6 +42,11 @@ async def _initial_sync_if_empty():
         db.close()
 
 
+def _schedule_initial_sync_if_empty():
+    """Schedule the first sync in the background so startup stays fast."""
+    asyncio.create_task(_initial_sync_if_empty())
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle."""
@@ -57,10 +63,9 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
-    # Auto-sync on first deploy (empty DB)
-    await _initial_sync_if_empty()
-
     start_scheduler()
+    # Auto-sync on first deploy (empty DB) without blocking readiness/healthchecks.
+    _schedule_initial_sync_if_empty()
     yield
     stop_scheduler()
     logger.info("Application shut down.")
@@ -98,6 +103,12 @@ app.include_router(faces_router)
 async def index(request: Request):
     """Dashboard page with map and case list."""
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/healthz")
+async def healthz():
+    """Lightweight deployment healthcheck."""
+    return {"status": "ok"}
 
 
 @app.get("/case/{objectid}")
