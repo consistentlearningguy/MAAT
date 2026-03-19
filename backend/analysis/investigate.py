@@ -30,10 +30,6 @@ from backend.models.investigation import Investigation, Lead
 from backend.analysis.username_search import search_all_usernames
 from backend.analysis.web_mentions import scan_web_mentions
 from backend.analysis.lead_scoring import score_username_hit, score_web_mention
-from backend.analysis.face_engine import (
-    async_index_case_photos,
-    async_find_cross_case_matches,
-)
 from backend.analysis.reverse_image_search import search_all_providers
 from backend.models.face import FaceEncoding
 from backend.core.config import settings
@@ -285,9 +281,17 @@ async def _run_face_search(
 
     leads = []
 
+    from backend.analysis import face_engine
+
+    try:
+        face_engine.ensure_face_recognition_available()
+    except RuntimeError as e:
+        logger.warning(f"Skipping face search for case {case_objectid}: {e}")
+        return leads
+
     # Step 1: Index this case's photos
     try:
-        index_result = await async_index_case_photos(case_objectid, db)
+        index_result = await face_engine.async_index_case_photos(case_objectid, db)
         logger.info(
             f"Face indexing for case {case_objectid}: "
             f"{index_result['total_faces_found']} face(s) from "
@@ -299,7 +303,7 @@ async def _run_face_search(
 
     # Step 2: Cross-case face matching
     try:
-        matches = await async_find_cross_case_matches(case_objectid, db)
+        matches = await face_engine.async_find_cross_case_matches(case_objectid, db)
         for match in matches:
             # Build face crop URLs for display
             face_a_url = f"/data/faces/{match['face_a_crop']}" if match.get("face_a_crop") else ""

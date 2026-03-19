@@ -59,8 +59,11 @@ Extracts faces from case photos, computes 128-dimensional face encodings using `
 ### Prerequisites
 
 - Python 3.11+
-- [CMake](https://cmake.org/download/) (required for building `dlib`)
 - Git
+
+Optional for Phase 3 face search:
+
+- [CMake](https://cmake.org/download/) and a native build toolchain for `dlib`
 
 ### Setup
 
@@ -76,6 +79,8 @@ venv\Scripts\activate
 source venv/bin/activate
 
 pip install -r requirements.txt
+# Optional: enable Phase 3 face recognition locally
+# pip install -r requirements-face.txt
 cp .env.example .env
 ```
 
@@ -215,7 +220,7 @@ All settings via environment variables (see `.env.example`):
 
 - **Backend:** Python 3.11+, FastAPI, SQLAlchemy, SQLite
 - **Frontend:** Jinja2, Tailwind CSS, Leaflet.js
-- **Face Recognition:** face_recognition (dlib), Pillow, NumPy
+- **Face Recognition:** optional extra via `requirements-face.txt` using face_recognition (dlib)
 - **HTTP Client:** httpx (async)
 - **Scheduler:** APScheduler
 - **Deployment:** Railway (Nixpacks)

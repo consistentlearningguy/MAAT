@@ -23,7 +23,8 @@ pydantic==2.10.4
 # Logging
 loguru==0.7.3
 
-# Face recognition (Phase 3)
-face-recognition==1.3.0
+# Face recognition (Phase 3) is optional because dlib often requires
+# native build tooling during deployment. Install requirements-face.txt
+# when you want to enable those endpoints locally or in a custom image.
 Pillow==11.1.0
 numpy>=1.24.0

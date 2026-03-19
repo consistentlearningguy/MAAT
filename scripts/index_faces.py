@@ -20,11 +20,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from loguru import logger
 
 from backend.core.database import init_db, SessionLocal
-from backend.analysis.face_engine import (
-    index_all_photos,
-    find_cross_case_matches,
-    save_cross_case_matches,
-)
 
 
 def main():
@@ -58,6 +53,14 @@ def main():
     logger.info("Initializing database...")
     init_db()
 
+    from backend.analysis import face_engine
+
+    try:
+        face_engine.ensure_face_recognition_available()
+    except RuntimeError as e:
+        logger.error(str(e))
+        raise SystemExit(1)
+
     db = SessionLocal()
     try:
         # --- Index phase ---
@@ -71,7 +74,7 @@ def main():
                 logger.info("(Force mode: re-indexing existing photos)")
             logger.info("")
 
-            result = index_all_photos(db, force=args.force, case_objectid=args.case)
+            result = face_engine.index_all_photos(db, force=args.force, case_objectid=args.case)
 
             logger.info("")
             logger.info("=== Indexing Results ===")
@@ -85,7 +88,7 @@ def main():
         # --- Matching phase ---
         if args.match or args.match_only:
             logger.info("Running cross-case face matching...")
-            matches = find_cross_case_matches(
+            matches = face_engine.find_cross_case_matches(
                 db,
                 case_objectid=args.case,
                 threshold=args.threshold,
@@ -101,7 +104,7 @@ def main():
                 if len(matches) > 20:
                     logger.info(f"  ... and {len(matches) - 20} more")
 
-                saved = save_cross_case_matches(db, matches)
+                saved = face_engine.save_cross_case_matches(db, matches)
                 logger.info(f"Saved {len(saved)} new match(es) to database")
             else:
                 logger.info("No cross-case face matches found.")

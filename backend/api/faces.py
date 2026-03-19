@@ -22,15 +22,16 @@ from backend.core.config import settings
 from backend.core.database import get_db, SessionLocal
 from backend.models.case import MissingCase, CasePhoto
 from backend.models.face import FaceEncoding, FaceMatch
-from backend.analysis.face_engine import (
-    index_all_photos,
-    index_photo,
-    find_cross_case_matches,
-    save_cross_case_matches,
-    match_uploaded_image,
-)
 
 router = APIRouter(prefix="/api/faces", tags=["faces"])
+
+
+def _get_face_engine():
+    """Import the face engine lazily so app startup does not require dlib."""
+    from backend.analysis import face_engine
+
+    face_engine.ensure_face_recognition_available()
+    return face_engine
 
 
 # ---------------------------------------------------------------------------
@@ -53,11 +54,14 @@ def index_faces(
     a few seconds per photo. For large batches, consider running via script.
     """
     try:
-        result = index_all_photos(db, force=force, case_objectid=case_objectid)
+        face_engine = _get_face_engine()
+        result = face_engine.index_all_photos(db, force=force, case_objectid=case_objectid)
         return {
             "status": "completed",
             **result,
         }
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Face indexing failed: {e}")
         raise HTTPException(status_code=500, detail=f"Face indexing failed: {str(e)}")
@@ -134,13 +138,14 @@ def run_cross_case_matching(
     Otherwise, compare all faces against each other.
     """
     try:
-        matches = find_cross_case_matches(
+        face_engine = _get_face_engine()
+        matches = face_engine.find_cross_case_matches(
             db, case_objectid=case_objectid, threshold=threshold
         )
 
         saved = []
         if save_results and matches:
-            saved = save_cross_case_matches(db, matches)
+            saved = face_engine.save_cross_case_matches(db, matches)
 
         return {
             "status": "completed",
@@ -148,6 +153,8 @@ def run_cross_case_matching(
             "new_matches_saved": len(saved),
             "matches": matches[:50],  # Cap response size
         }
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Cross-case matching failed: {e}")
         raise HTTPException(status_code=500, detail=f"Matching failed: {str(e)}")
@@ -236,13 +243,16 @@ async def search_by_upload(
             tmp.write(content)
             tmp_path = tmp.name
 
-        results = match_uploaded_image(tmp_path, db, threshold=threshold, limit=limit)
+        face_engine = _get_face_engine()
+        results = face_engine.match_uploaded_image(tmp_path, db, threshold=threshold, limit=limit)
 
         return {
             "total_matches": len(results),
             "matches": results,
         }
 
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Upload face search failed: {e}")
         raise HTTPException(status_code=500, detail=f"Face search failed: {str(e)}")

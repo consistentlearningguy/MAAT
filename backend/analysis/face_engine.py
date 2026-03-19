@@ -16,14 +16,27 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-import face_recognition
 from PIL import Image
 from loguru import logger
 from sqlalchemy.orm import Session
 
+try:
+    import face_recognition
+except ImportError:
+    face_recognition = None
+
 from backend.core.config import settings
 from backend.models.case import MissingCase, CasePhoto
 from backend.models.face import FaceEncoding, FaceMatch
+
+
+def ensure_face_recognition_available() -> None:
+    """Fail with a clear message when optional face dependencies are missing."""
+    if face_recognition is None:
+        raise RuntimeError(
+            "Face recognition is not installed. Install requirements-face.txt "
+            "to enable face indexing and matching."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -49,6 +62,8 @@ def detect_and_encode_photo(
         - location: (top, right, bottom, left) pixel coordinates
         - face_index: 0-based index
     """
+    ensure_face_recognition_available()
+
     model = detection_model or settings.FACE_DETECTION_MODEL
     upsample = upsample_count if upsample_count is not None else settings.FACE_UPSAMPLE_COUNT
 
@@ -339,6 +354,8 @@ def compare_faces(
         List of (index, distance) tuples for matches below threshold,
         sorted by distance ascending
     """
+    ensure_face_recognition_available()
+
     if not candidate_encodings:
         return []
 

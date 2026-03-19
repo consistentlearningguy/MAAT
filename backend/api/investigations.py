@@ -18,7 +18,6 @@ from sqlalchemy.orm import Session
 from backend.core.database import get_db, SessionLocal
 from backend.models.case import MissingCase
 from backend.models.investigation import Investigation, Lead
-from backend.analysis.investigate import run_investigation
 
 router = APIRouter(prefix="/api/investigations", tags=["investigations"])
 
@@ -137,6 +136,8 @@ async def _run_investigation_background(
     """
     db = SessionLocal()
     try:
+        from backend.analysis.investigate import run_investigation
+
         # Delegate to the SINGLE orchestrator in investigate.py
         # Pass the pre-created investigation_id so it doesn't create a duplicate
         await run_investigation(
