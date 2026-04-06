@@ -1,6 +1,18 @@
-﻿# OSINT Missing Persons Canada
+﻿# MAAT — Truth from Chaos
 
-Static-first public dashboard for Canadian missing children cases, with an optional Python backend for developer and investigator workflows.
+OSINT intelligence platform for Canadian missing children cases. Named after Ma'at, the Egyptian concept of truth and order — because finding missing children means extracting truth from chaos.
+
+**The end goal: find the missing kids and notify authority so we can actually help.**
+
+## What MAAT does
+
+1. **Gathers** public case data from the Missing Children Society of Canada ArcGIS feed
+2. **Sweeps** multiple OSINT connectors (news, archives, social, official registries) for leads
+3. **Scores** each lead with transparent confidence ratings and rationale
+4. **Clusters** leads thematically — sighting reports, media coverage, official updates
+5. **Detects patterns** — geographic clusters, temporal bursts, cold trails
+6. **Synthesizes** actionable intelligence — situation summaries, authority briefs, priority recommendations
+7. **Routes** discoveries to the listed investigating authority or MCSC
 
 ## Safety position
 
@@ -9,6 +21,7 @@ Static-first public dashboard for Canadian missing children cases, with an optio
 - Use only lawful, public, non-authenticated sources.
 - No scraping behind logins, no doxxing, no contacting relatives, no vigilante action.
 - Every lead should be reported to the listed authority or the Missing Children Society of Canada.
+- MAAT generates intelligence — humans and authorities make decisions.
 
 ## Monorepo structure
 
@@ -32,6 +45,7 @@ Static-first public dashboard for Canadian missing children cases, with an optio
       connectors/
       scoring/
       normalization/
+      synthesis.py              # MAAT intelligence synthesis engine
     models/
     services/
   shared/                       # Shared schemas, constants, and utilities
@@ -43,7 +57,7 @@ Static-first public dashboard for Canadian missing children cases, with an optio
   tests/
 ```
 
-**[VIEW LIVE DASHBOARD](https://consistentlearningguy.github.io/osint-missing-persons-ca/dashboard.html)**
+**[VIEW LIVE DASHBOARD](https://consistentlearningguy.github.io/osint-missing-persons-ca/)**
 
 ## What changed from the old repo
 
@@ -76,8 +90,6 @@ Optional for developer/investigator mode:
 - SQLite database in `data/db.sqlite`
 - Sync/export scripts
 - Feature-flagged connector setup
-- Optional face dependencies from `requirements-optional-face.txt`
-- Optional clear-web or dark-web-capable connectors from `requirements-optional-osint.txt`
 
 ## Quick start
 
@@ -165,15 +177,17 @@ Current adapter status:
 - `mock-public-search`: disabled by default and intended for explicit offline verification/tests only.
 - `resource-pack`: investigator-mode case playbook with category coverage, official cross-checks, news/archive pivots, geo open-data pivots, and reverse-image launch points.
 
-## Optional face module
+## Intelligence Synthesis (MAAT Engine)
 
-Install only for local investigator workflows:
+After an investigation run, the synthesis endpoint (`/api/investigations/runs/{id}/synthesis`) produces:
 
-```bash
-pip install -r requirements-optional-face.txt
-```
-
-This rebuild does not make face workflows a hard dependency for deploy/build.
+- **Situation summary** — plain-language assessment of the intelligence landscape
+- **Lead clusters** — thematic groups (sighting reports, media coverage, official updates) by similarity and geography
+- **Intelligence timeline** — source-attributed chronological events from all connectors
+- **Geographic patterns** — location clusters, dispersal analysis, distance from case origin
+- **Temporal patterns** — activity bursts, cold trail detection, recent activity
+- **Actionable recommendations** — prioritized next steps (CRITICAL / HIGH / MEDIUM)
+- **Authority brief** — ready-to-forward text summary for investigating authorities
 
 ## Scripts
 

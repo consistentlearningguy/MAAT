@@ -1053,6 +1053,10 @@
     });
   }
 
+  async function getRunSynthesis(apiBase, runId) {
+    return requestApiJson(apiBase, `/api/investigations/runs/${runId}/synthesis`);
+  }
+
   window.OsintMissingPersons = {
     ARCGIS_URL,
     STATUS_LABELS,
@@ -1087,6 +1091,7 @@
     getRunLeads,
     getRunQueryLogs,
     reviewLead,
+    getRunSynthesis,
     fetchJson,
   };
 })();

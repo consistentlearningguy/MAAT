@@ -1325,6 +1325,168 @@ body[data-page="evidence"] .detail-panel {
   }
 }
 
+/* ── MAAT Intelligence Synthesis ── */
+
+.synthesis-container {
+  width: 100%;
+}
+
+.synthesis-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+}
+
+.synthesis-panel .panel-head {
+  margin-bottom: 1.5rem;
+}
+
+.synthesis-badge {
+  background: var(--cyan-soft);
+  color: var(--cyan);
+  border: 1px solid rgba(114, 232, 255, 0.25);
+}
+
+.synthesis-summary-card {
+  border-left: 3px solid var(--cyan);
+}
+
+.synthesis-summary {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.recommendation-card {
+  padding: 1rem 1.2rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.recommendation-card.metric-alert {
+  border-left: 3px solid var(--danger);
+  background: var(--danger-soft);
+}
+
+.recommendation-card.metric-hot {
+  border-left: 3px solid var(--amber);
+  background: var(--amber-soft);
+}
+
+.recommendation-card.metric-neutral {
+  border-left: 3px solid var(--cyan);
+  background: var(--cyan-soft);
+}
+
+.contact-note {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.finding-item {
+  padding: 0.6rem 0.8rem;
+  border-left: 2px solid var(--line);
+  margin-bottom: 0.4rem;
+}
+
+.finding-item p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.cluster-card {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.cluster-card + .cluster-card {
+  margin-top: 0.5rem;
+}
+
+.timeline-stack .timeline-item {
+  position: relative;
+  padding-left: 1.6rem;
+}
+
+.timeline-stack .timeline-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.7rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cyan);
+}
+
+.timeline-stack .timeline-item::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 1.4rem;
+  bottom: -0.4rem;
+  width: 2px;
+  background: var(--line);
+}
+
+.timeline-stack .timeline-item:last-child::after {
+  display: none;
+}
+
+.timeline-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.3rem;
+}
+
+.timeline-date {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+}
+
+.pattern-item {
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.pattern-item.pattern-high {
+  border-left: 3px solid var(--danger);
+}
+
+.pattern-item.pattern-medium {
+  border-left: 3px solid var(--amber);
+}
+
+.authority-brief-card {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.authority-brief {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+  background: var(--bg);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  margin: 0.5rem 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

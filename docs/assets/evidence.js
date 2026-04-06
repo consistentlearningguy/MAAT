@@ -15,6 +15,7 @@
     activeRunId: null,
     activeRun: null,
     resourcePack: null,
+    synthesis: null,
     leads: [],
     queryLogs: [],
     activeLeadId: null,
@@ -49,6 +50,7 @@
     leadList: document.getElementById("leadList"),
     queryLogList: document.getElementById("queryLogList"),
     evidenceMap: document.getElementById("evidenceMap"),
+    synthesisContainer: document.getElementById("synthesisContainer"),
     profilesNavLink: document.getElementById("profilesNavLink"),
     openProfilesPage: document.getElementById("openProfilesPage"),
   };
@@ -409,6 +411,232 @@
     `;
   }
 
+  // ── MAAT Intelligence Synthesis Rendering ──
+
+  function renderSynthesisPanel() {
+    const syn = state.synthesis;
+    if (!syn) {
+      return "";
+    }
+
+    const priorityLabels = { 1: "CRITICAL", 2: "HIGH", 3: "MEDIUM" };
+    const priorityClasses = { 1: "metric-alert", 2: "metric-hot", 3: "metric-neutral" };
+
+    return `
+      <section class="panel synthesis-panel reveal-up">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">MAAT Intelligence Synthesis</p>
+            <h3>Truth from Chaos</h3>
+          </div>
+          <span class="panel-badge synthesis-badge">${syn.total_clusters} cluster${syn.total_clusters === 1 ? "" : "s"}</span>
+        </div>
+
+        <div class="detail-stack">
+          <div class="detail-card synthesis-summary-card">
+            <div class="detail-section-head">
+              <strong>Situation Assessment</strong>
+              <span>${App.formatDate(syn.generated_at)}</span>
+            </div>
+            <p class="synthesis-summary">${App.escapeHtml(syn.situation_summary)}</p>
+            <div class="metric-grid compact-metrics">
+              <article class="metric-card metric-neutral">
+                <span class="metric-kicker">Leads Analyzed</span>
+                <strong class="metric-value">${syn.total_leads}</strong>
+              </article>
+              <article class="metric-card metric-live">
+                <span class="metric-kicker">High Confidence</span>
+                <strong class="metric-value">${syn.high_confidence_leads}</strong>
+              </article>
+              <article class="metric-card metric-hot">
+                <span class="metric-kicker">Clusters</span>
+                <strong class="metric-value">${syn.total_clusters}</strong>
+              </article>
+            </div>
+          </div>
+
+          ${syn.recommendations && syn.recommendations.length ? `
+            <div class="detail-card">
+              <div class="detail-section-head">
+                <strong>Actionable Recommendations</strong>
+                <span>${syn.recommendations.length} action${syn.recommendations.length === 1 ? "" : "s"}</span>
+              </div>
+              <div class="stack-list tight-stack">
+                ${syn.recommendations.map((rec) => `
+                  <div class="recommendation-card ${priorityClasses[rec.priority] || "metric-neutral"}">
+                    <div class="detail-section-head">
+                      <strong>[${App.escapeHtml(priorityLabels[rec.priority] || "INFO")}] ${App.escapeHtml(rec.action)}</strong>
+                    </div>
+                    <p>${App.escapeHtml(rec.rationale)}</p>
+                    ${rec.contact_info ? `<p class="metric-note contact-note">${App.escapeHtml(rec.contact_info)}</p>` : ""}
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          ` : ""}
+
+          ${syn.key_findings && syn.key_findings.length ? `
+            <div class="detail-card">
+              <div class="detail-section-head">
+                <strong>Key Findings</strong>
+                <span>Intelligence Summary</span>
+              </div>
+              <div class="stack-list tight-stack">
+                ${syn.key_findings.map((finding) => `
+                  <div class="finding-item">
+                    <p>${App.escapeHtml(finding)}</p>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          ` : ""}
+
+          ${syn.clusters && syn.clusters.length ? `
+            <div class="detail-card">
+              <div class="detail-section-head">
+                <strong>Lead Clusters</strong>
+                <span>Thematic Analysis</span>
+              </div>
+              <div class="stack-list tight-stack">
+                ${syn.clusters.slice(0, 8).map((cluster) => `
+                  <div class="cluster-card">
+                    <div class="detail-section-head">
+                      <div>
+                        <strong>${App.escapeHtml(cluster.label)}</strong>
+                        <p class="metric-note">${App.escapeHtml(cluster.summary)}</p>
+                      </div>
+                      <span class="source-badge">${Math.round(cluster.max_confidence * 100)}% peak</span>
+                    </div>
+                    <div class="geo-chip-row">
+                      <span class="geo-chip">${cluster.lead_ids ? cluster.lead_ids.length : 0} leads</span>
+                      <span class="geo-chip">${cluster.source_count} source${cluster.source_count === 1 ? "" : "s"}</span>
+                      <span class="flag-chip">${App.escapeHtml(cluster.theme)}</span>
+                      ${cluster.location_text ? `<span class="geo-chip">${App.escapeHtml(cluster.location_text)}</span>` : ""}
+                    </div>
+                    ${cluster.unique_sources && cluster.unique_sources.length ? `
+                      <div class="geo-chip-row">
+                        ${cluster.unique_sources.map((s) => `<span class="source-badge">${App.escapeHtml(s)}</span>`).join("")}
+                      </div>
+                    ` : ""}
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          ` : ""}
+
+          ${renderSynthesisTimeline()}
+          ${renderPatterns()}
+
+          ${syn.authority_brief ? `
+            <div class="detail-card authority-brief-card">
+              <div class="detail-section-head">
+                <strong>Authority Brief</strong>
+                <span>Ready to Forward</span>
+              </div>
+              <pre class="authority-brief">${App.escapeHtml(syn.authority_brief)}</pre>
+              <p class="metric-note">Copy this brief and forward it to the investigating authority listed in the case profile.</p>
+            </div>
+          ` : ""}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderSynthesisTimeline() {
+    const syn = state.synthesis;
+    if (!syn || !syn.timeline || !syn.timeline.length) {
+      return "";
+    }
+
+    const kindLabels = {
+      official: "Official",
+      news: "News",
+      sighting: "Sighting",
+      archive: "Archive",
+      social: "Social",
+      derived: "Derived",
+    };
+    const kindClasses = {
+      official: "status-missing",
+      news: "status-vulnerable",
+      sighting: "status-abduction",
+      archive: "status-childsearchalert",
+      social: "status-policeoption1",
+      derived: "",
+    };
+
+    return `
+      <div class="detail-card">
+        <div class="detail-section-head">
+          <strong>Intelligence Timeline</strong>
+          <span>${syn.timeline.length} event${syn.timeline.length === 1 ? "" : "s"}</span>
+        </div>
+        <div class="stack-list tight-stack timeline-stack">
+          ${syn.timeline.map((event) => `
+            <div class="timeline-item">
+              <div>
+                <div class="timeline-head">
+                  <span class="status-tag ${kindClasses[event.kind] || ""}">${App.escapeHtml(kindLabels[event.kind] || event.kind)}</span>
+                  <span class="timeline-date">${App.formatDate(event.date)}</span>
+                  ${event.confidence != null ? `<span class="source-badge">${Math.round(event.confidence * 100)}%</span>` : ""}
+                </div>
+                <strong>${App.escapeHtml(event.label)}</strong>
+                ${event.source_name ? `<p class="metric-note">Source: ${App.escapeHtml(event.source_name)}</p>` : ""}
+              </div>
+              ${event.source_url ? `<a class="link-button" href="${event.source_url}" target="_blank" rel="noopener">View Source</a>` : ""}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPatterns() {
+    const syn = state.synthesis;
+    if (!syn) return "";
+
+    const geoPatterns = syn.geographic_patterns || [];
+    const tempPatterns = syn.temporal_patterns || [];
+
+    if (!geoPatterns.length && !tempPatterns.length) return "";
+
+    return `
+      <div class="detail-card">
+        <div class="detail-section-head">
+          <strong>Pattern Analysis</strong>
+          <span>${geoPatterns.length + tempPatterns.length} pattern${(geoPatterns.length + tempPatterns.length) === 1 ? "" : "s"}</span>
+        </div>
+        <div class="stack-list tight-stack">
+          ${geoPatterns.map((p) => `
+            <div class="pattern-item pattern-${App.escapeHtml(p.significance || "low")}">
+              <div class="detail-section-head">
+                <strong>${App.escapeHtml(p.label)}</strong>
+                <span class="flag-chip">${App.escapeHtml(p.significance || "info")}</span>
+              </div>
+              <div class="geo-chip-row">
+                <span class="geo-chip">Geographic</span>
+                ${p.distance_from_case_km != null ? `<span class="geo-chip">${p.distance_from_case_km.toFixed(0)}km from origin</span>` : ""}
+                ${p.lead_count ? `<span class="source-badge">${p.lead_count} leads</span>` : ""}
+              </div>
+            </div>
+          `).join("")}
+          ${tempPatterns.map((p) => `
+            <div class="pattern-item pattern-${App.escapeHtml(p.significance || "low")}">
+              <div class="detail-section-head">
+                <strong>${App.escapeHtml(p.label)}</strong>
+                <span class="flag-chip">${App.escapeHtml(p.significance || "info")}</span>
+              </div>
+              <div class="geo-chip-row">
+                <span class="geo-chip">Temporal</span>
+                ${p.lead_count ? `<span class="source-badge">${p.lead_count} leads</span>` : ""}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
   function renderSelectedCaseCard() {
     const record = state.cases.find((item) => item.id === state.selectedCaseId);
     if (!record) {
@@ -732,6 +960,10 @@
     renderSignalBands();
     syncEvidenceMap();
     updateNavigationLinks();
+    // Render MAAT synthesis panel
+    if (elements.synthesisContainer) {
+      elements.synthesisContainer.innerHTML = renderSynthesisPanel();
+    }
     App.writeRouteState(currentFilters());
     elements.runInvestigationButton.disabled = !state.apiBase || !state.selectedCaseId || state.loadingRun;
   }
@@ -742,6 +974,7 @@
     state.activeRunId = null;
     state.leads = [];
     state.queryLogs = [];
+    state.synthesis = null;
     state.activeLeadId = null;
     state.runMessage = message;
     routeState.runId = "";
@@ -757,7 +990,7 @@
     clearPoll();
 
     try {
-      const [runPayload, leadsPayload, queryPayload] = await Promise.all([
+      const [runPayload, leadsPayload, queryPayload, synthesisPayload] = await Promise.all([
         App.getRun(state.apiBase, runId),
         App.getRunLeads(state.apiBase, runId, {
           reviewStatus: elements.reviewStatusSelect.value,
@@ -765,12 +998,14 @@
           limit: elements.leadLimitSelect.value || "100",
         }),
         App.getRunQueryLogs(state.apiBase, runId),
+        App.getRunSynthesis(state.apiBase, runId).catch(() => null),
       ]);
 
       state.activeRunId = runId;
       state.activeRun = runPayload;
       state.leads = leadsPayload.leads || [];
       state.queryLogs = queryPayload.query_logs || [];
+      state.synthesis = synthesisPayload;
       state.runMessage = "Investigation data loaded.";
       routeState.runId = String(runId);
       renderAll();
