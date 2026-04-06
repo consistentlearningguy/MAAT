@@ -1,35 +1,39 @@
-"""SQLAlchemy database engine, session factory, and initialization."""
+﻿"""SQLAlchemy database setup."""
+
+from __future__ import annotations
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from backend.core.config import settings
 
-# Handle SQLite file path: strip sqlite:/// prefix for path check
+
+class Base(DeclarativeBase):
+    """Declarative base for SQLAlchemy models."""
+
+
 engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
-    echo=settings.DEBUG,
+    settings.database_url,
+    connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},
+    future=True,
+    echo=settings.debug,
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-
-def init_db():
-    """Create all database tables."""
-    from backend.models.case import MissingCase, CasePhoto, SyncLog  # noqa: F401
-    from backend.models.investigation import Investigation, Lead  # noqa: F401
-    from backend.models.face import FaceEncoding, FaceMatch  # noqa: F401
-
-    Base.metadata.create_all(bind=engine)
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
 
 
 def get_db():
-    """FastAPI dependency that provides a database session."""
-    db = SessionLocal()
+    """FastAPI dependency for DB sessions."""
+    session = SessionLocal()
     try:
-        yield db
+        yield session
     finally:
-        db.close()
+        session.close()
+
+
+def init_db() -> None:
+    """Create tables."""
+    from backend.models.case import AlertSnapshot, Case, CasePhoto, GeoContext, ResourceLink, SourceRecord
+    from backend.models.investigation import InvestigationRun, Lead, ReviewDecision, SearchQueryLog
+
+    Base.metadata.create_all(bind=engine)

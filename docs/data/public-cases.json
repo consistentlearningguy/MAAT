@@ -1,0 +1,271 @@
+﻿{
+  "meta": {
+    "generated_at": "2026-03-19T09:00:00Z",
+    "dataset_mode": "sample-export",
+    "source_name": "Bundled sample export for offline preview",
+    "safety_notice": "This bundled file is sample data only. Replace it with a real export or use live mode. Official facts and inferred context must remain separate, and all leads must be reported to the listed authority."
+  },
+  "stats": {
+    "total_cases": 4,
+    "high_risk_cases": 3,
+    "province_distribution": {
+      "Ontario": 1,
+      "British Columbia": 1,
+      "Manitoba": 1,
+      "Quebec": 1
+    },
+    "status_distribution": {
+      "Vulnerable": 1,
+      "Missing": 1,
+      "Child Search Alert": 1,
+      "Amber Alert": 1
+    },
+    "age_distribution": {
+      "0-5": 0,
+      "6-10": 1,
+      "11-15": 2,
+      "16-18": 1,
+      "unknown": 0
+    },
+    "update_trend": {
+      "2026-03-19": 1,
+      "2026-03-18": 1,
+      "2026-03-17": 1,
+      "2026-03-14": 1
+    }
+  },
+  "cases": [
+    {
+      "id": 9001,
+      "slug": "sample-case-toronto",
+      "facts": {
+        "name": "Sample Case Toronto",
+        "aliases": ["SCT"],
+        "age": 14,
+        "gender": "Female",
+        "ethnicity": "Not listed",
+        "city": "Toronto",
+        "province": "Ontario",
+        "status": "vulnerable",
+        "status_label": "Vulnerable",
+        "case_status": "open",
+        "missing_since": "2026-03-14T18:30:00Z",
+        "updated_at": "2026-03-19T07:15:00Z",
+        "authority_name": "Toronto Police Service",
+        "authority_email": "missingpersons@torontopolice.on.ca",
+        "authority_phone": "416-808-2222",
+        "authority_phone_alt": null,
+        "authority_case_url": "https://www.tps.ca/",
+        "mcsc_email": "tips@mcsc.ca",
+        "mcsc_phone": "1-800-661-6160",
+        "official_summary_html": "<p>Bundled sample record for interface validation. Replace this export with live data from the Missing Children Society of Canada feed before public deployment.</p>",
+        "coordinates": {"latitude": 43.6532, "longitude": -79.3832}
+      },
+      "inference": {
+        "risk_flags": ["high-priority-status", "recent-disappearance"],
+        "risk_rank": 2,
+        "elapsed_days": 5,
+        "estimated_current_age": 14,
+        "summary": "Derived context only. Treat these indicators as unverified and report observations to the listed authority.",
+        "timeline_entries": [
+          {"label": "Official disappearance date", "date": "2026-03-14T18:30:00Z", "kind": "official"},
+          {"label": "Latest public update", "date": "2026-03-19T07:15:00Z", "kind": "official"},
+          {"label": "Elapsed time since disappearance", "date": "2026-03-19T09:00:00Z", "kind": "derived", "value": 5}
+        ],
+        "what_to_report": [
+          "Time and location of any sighting.",
+          "Transit stop, station, or corridor details.",
+          "Links or screenshots from public posts."
+        ],
+        "how_to_help_safely": [
+          "Share the official case link rather than rumor threads.",
+          "Do not contact relatives or visit private addresses.",
+          "Route leads to Toronto Police or MCSC."
+        ]
+      },
+      "photos": [
+        {"url": "./assets/case-a.svg", "thumb_url": "./assets/case-a.svg", "caption": "Sample portrait", "is_primary": true}
+      ],
+      "sources": [
+        {"label": "Official MCSC sample export", "source_name": "MCSC", "source_url": "https://mcsc.ca/", "source_type": "official-feed", "official": true, "retrieved_at": "2026-03-19T09:00:00Z", "trust_weight": 1.0},
+        {"label": "Toronto Police reference", "source_name": "Toronto Police Service", "source_url": "https://www.tps.ca/", "source_type": "official-reference", "official": true, "retrieved_at": "2026-03-19T09:00:00Z", "trust_weight": 0.95}
+      ],
+      "resource_links": [
+        {"label": "Ontario Provincial Police Missing Persons", "url": "https://www.opp.ca/index.php?id=132", "category": "official-reporting", "official": true, "authority_type": "police"},
+        {"label": "Ontario 211 Community Supports", "url": "https://211ontario.ca/", "category": "support", "official": true, "authority_type": "provincial"}
+      ],
+      "geo_context": [
+        {"context_type": "airport", "label": "Toronto Pearson International Airport", "distance_km": 18.6, "source_url": "https://www.torontopearson.com/", "jurisdiction": "Ontario"},
+        {"context_type": "highway", "label": "Highway 401 corridor", "distance_km": 7.1, "source_url": "https://511on.ca/", "jurisdiction": "Ontario"},
+        {"context_type": "youth-service", "label": "Covenant House Toronto", "distance_km": 1.6, "source_url": "https://covenanthousetoronto.ca/", "jurisdiction": "Ontario"}
+      ]
+    },
+    {
+      "id": 9002,
+      "slug": "sample-case-surrey",
+      "facts": {
+        "name": "Sample Case Surrey",
+        "aliases": [],
+        "age": 16,
+        "gender": "Male",
+        "ethnicity": "Not listed",
+        "city": "Surrey",
+        "province": "British Columbia",
+        "status": "missing",
+        "status_label": "Missing",
+        "case_status": "open",
+        "missing_since": "2026-03-08T21:00:00Z",
+        "updated_at": "2026-03-18T11:10:00Z",
+        "authority_name": "Surrey RCMP",
+        "authority_email": null,
+        "authority_phone": "604-599-0502",
+        "authority_phone_alt": null,
+        "authority_case_url": "https://bc-cb.rcmp-grc.gc.ca/",
+        "mcsc_email": "tips@mcsc.ca",
+        "mcsc_phone": "1-800-661-6160",
+        "official_summary_html": "<p>Sample public record used to demonstrate the static-first dashboard and map/list workflow.</p>",
+        "coordinates": {"latitude": 49.1913, "longitude": -122.8490}
+      },
+      "inference": {
+        "risk_flags": ["transit-corridor"],
+        "risk_rank": 1,
+        "elapsed_days": 11,
+        "estimated_current_age": 16,
+        "summary": "Derived context only. Transit, airport, and border indicators are public reference layers, not confirmed movement.",
+        "timeline_entries": [
+          {"label": "Official disappearance date", "date": "2026-03-08T21:00:00Z", "kind": "official"},
+          {"label": "Latest public update", "date": "2026-03-18T11:10:00Z", "kind": "official"},
+          {"label": "Elapsed time since disappearance", "date": "2026-03-19T09:00:00Z", "kind": "derived", "value": 11}
+        ],
+        "what_to_report": ["Station or platform details.", "Vehicle make/model if observed.", "Public-post links or usernames only if publicly visible."],
+        "how_to_help_safely": ["Avoid speculation about associates.", "Use official police channels for tips.", "Do not attempt direct contact." ]
+      },
+      "photos": [
+        {"url": "./assets/case-b.svg", "thumb_url": "./assets/case-b.svg", "caption": "Sample portrait", "is_primary": true}
+      ],
+      "sources": [
+        {"label": "Official MCSC sample export", "source_name": "MCSC", "source_url": "https://mcsc.ca/", "source_type": "official-feed", "official": true, "retrieved_at": "2026-03-19T09:00:00Z", "trust_weight": 1.0}
+      ],
+      "resource_links": [
+        {"label": "BC RCMP Missing Persons", "url": "https://www.rcmp-grc.gc.ca/en/missing-persons", "category": "official-reporting", "official": true, "authority_type": "RCMP"},
+        {"label": "VictimLinkBC", "url": "https://www2.gov.bc.ca/gov/content/justice/criminal-justice/victims-of-crime/victimlinkbc", "category": "support", "official": true, "authority_type": "provincial"}
+      ],
+      "geo_context": [
+        {"context_type": "airport", "label": "Vancouver International Airport", "distance_km": 23.5, "source_url": "https://www.yvr.ca/", "jurisdiction": "British Columbia"},
+        {"context_type": "border-crossing", "label": "Douglas Border Crossing", "distance_km": 14.2, "source_url": "https://www.cbsa-asfc.gc.ca/", "jurisdiction": "British Columbia"},
+        {"context_type": "highway", "label": "Highway 1 corridor", "distance_km": 6.4, "source_url": "https://www.drivebc.ca/", "jurisdiction": "British Columbia"}
+      ]
+    },
+    {
+      "id": 9003,
+      "slug": "sample-case-winnipeg",
+      "facts": {
+        "name": "Sample Case Winnipeg",
+        "aliases": ["North End sample"],
+        "age": 11,
+        "gender": "Female",
+        "ethnicity": "Not listed",
+        "city": "Winnipeg",
+        "province": "Manitoba",
+        "status": "childsearchalert",
+        "status_label": "Child Search Alert",
+        "case_status": "open",
+        "missing_since": "2026-03-17T13:20:00Z",
+        "updated_at": "2026-03-17T20:00:00Z",
+        "authority_name": "Winnipeg Police Service",
+        "authority_email": null,
+        "authority_phone": "204-986-6222",
+        "authority_phone_alt": null,
+        "authority_case_url": "https://www.winnipeg.ca/police/",
+        "mcsc_email": "tips@mcsc.ca",
+        "mcsc_phone": "1-800-661-6160",
+        "official_summary_html": "<p>Sample public record with high-priority status styling and geospatial context indicators.</p>",
+        "coordinates": {"latitude": 49.8951, "longitude": -97.1384}
+      },
+      "inference": {
+        "risk_flags": ["high-priority-status", "young-child", "recent-disappearance"],
+        "risk_rank": 2,
+        "elapsed_days": 2,
+        "estimated_current_age": 11,
+        "summary": "Derived context only. Nearby services and transit references are intended to guide lawful, non-intervention reporting.",
+        "timeline_entries": [
+          {"label": "Official disappearance date", "date": "2026-03-17T13:20:00Z", "kind": "official"},
+          {"label": "Latest public update", "date": "2026-03-17T20:00:00Z", "kind": "official"},
+          {"label": "Elapsed time since disappearance", "date": "2026-03-19T09:00:00Z", "kind": "derived", "value": 2}
+        ],
+        "what_to_report": ["Exact place seen.", "Who else was present if publicly observable.", "Timestamp and travel direction."],
+        "how_to_help_safely": ["Prioritize immediate reporting.", "Do not attempt pickup or interception.", "Use the listed police number or emergency services if urgent."]
+      },
+      "photos": [
+        {"url": "./assets/case-c.svg", "thumb_url": "./assets/case-c.svg", "caption": "Sample portrait", "is_primary": true}
+      ],
+      "sources": [
+        {"label": "Official MCSC sample export", "source_name": "MCSC", "source_url": "https://mcsc.ca/", "source_type": "official-feed", "official": true, "retrieved_at": "2026-03-19T09:00:00Z", "trust_weight": 1.0}
+      ],
+      "resource_links": [
+        {"label": "Manitoba RCMP Missing Persons", "url": "https://www.rcmp-grc.gc.ca/en/missing-persons", "category": "official-reporting", "official": true, "authority_type": "RCMP"}
+      ],
+      "geo_context": [
+        {"context_type": "airport", "label": "Winnipeg Richardson International Airport", "distance_km": 7.6, "source_url": "https://www.waa.ca/", "jurisdiction": "Manitoba"},
+        {"context_type": "border-crossing", "label": "Emerson Port of Entry", "distance_km": 98.4, "source_url": "https://www.cbsa-asfc.gc.ca/", "jurisdiction": "Manitoba"},
+        {"context_type": "youth-service", "label": "Ndinawemaaganag Endaawaad", "distance_km": 1.3, "source_url": "https://newcentre.org/", "jurisdiction": "Manitoba"}
+      ]
+    },
+    {
+      "id": 9004,
+      "slug": "sample-case-montreal",
+      "facts": {
+        "name": "Sample Case Montreal",
+        "aliases": [],
+        "age": 9,
+        "gender": "Male",
+        "ethnicity": "Not listed",
+        "city": "Montreal",
+        "province": "Quebec",
+        "status": "amberalert",
+        "status_label": "Amber Alert",
+        "case_status": "open",
+        "missing_since": "2026-03-12T08:10:00Z",
+        "updated_at": "2026-03-14T10:25:00Z",
+        "authority_name": "Surete du Quebec",
+        "authority_email": null,
+        "authority_phone": "310-4141",
+        "authority_phone_alt": null,
+        "authority_case_url": "https://www.sq.gouv.qc.ca/",
+        "mcsc_email": "tips@mcsc.ca",
+        "mcsc_phone": "1-800-661-6160",
+        "official_summary_html": "<p>Sample public record showing high-risk visual treatment and authority-first reporting guidance.</p>",
+        "coordinates": {"latitude": 45.5017, "longitude": -73.5673}
+      },
+      "inference": {
+        "risk_flags": ["high-priority-status", "young-child"],
+        "risk_rank": 3,
+        "elapsed_days": 7,
+        "estimated_current_age": 9,
+        "summary": "Derived indicators are for public triage only and do not confirm travel or association.",
+        "timeline_entries": [
+          {"label": "Official disappearance date", "date": "2026-03-12T08:10:00Z", "kind": "official"},
+          {"label": "Latest public update", "date": "2026-03-14T10:25:00Z", "kind": "official"},
+          {"label": "Elapsed time since disappearance", "date": "2026-03-19T09:00:00Z", "kind": "derived", "value": 7}
+        ],
+        "what_to_report": ["Vehicle description or route.", "Public camera or station location.", "Time observed and direction of travel."],
+        "how_to_help_safely": ["Follow official alert instructions.", "Do not confront anyone.", "Escalate urgent sightings to emergency services."]
+      },
+      "photos": [
+        {"url": "./assets/case-d.svg", "thumb_url": "./assets/case-d.svg", "caption": "Sample portrait", "is_primary": true}
+      ],
+      "sources": [
+        {"label": "Official MCSC sample export", "source_name": "MCSC", "source_url": "https://mcsc.ca/", "source_type": "official-feed", "official": true, "retrieved_at": "2026-03-19T09:00:00Z", "trust_weight": 1.0},
+        {"label": "Surete du Quebec reference", "source_name": "Surete du Quebec", "source_url": "https://www.sq.gouv.qc.ca/", "source_type": "official-reference", "official": true, "retrieved_at": "2026-03-19T09:00:00Z", "trust_weight": 0.95}
+      ],
+      "resource_links": [
+        {"label": "Surete du Quebec Missing Persons", "url": "https://www.sq.gouv.qc.ca/en/report-an-event/missing-persons/", "category": "official-reporting", "official": true, "authority_type": "police"}
+      ],
+      "geo_context": [
+        {"context_type": "airport", "label": "Montreal-Trudeau International Airport", "distance_km": 16.1, "source_url": "https://www.admtl.com/", "jurisdiction": "Quebec"},
+        {"context_type": "border-crossing", "label": "Saint-Bernard-de-Lacolle Border Crossing", "distance_km": 53.0, "source_url": "https://www.cbsa-asfc.gc.ca/", "jurisdiction": "Quebec"},
+        {"context_type": "youth-service", "label": "Dans la rue", "distance_km": 3.2, "source_url": "https://danslarue.org/", "jurisdiction": "Quebec"}
+      ]
+    }
+  ]
+}

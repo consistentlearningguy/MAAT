@@ -1,0 +1,27 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://osint-missing-persons-ca.example/schemas/lead.schema.json",
+  "title": "Normalized OSINT Lead",
+  "type": "object",
+  "required": [
+    "connector_name",
+    "source_url",
+    "query_used",
+    "found_at",
+    "confidence",
+    "rationale",
+    "source_kind"
+  ],
+  "properties": {
+    "connector_name": { "type": "string" },
+    "source_kind": { "type": "string", "enum": ["clear-web", "dark-web-capable"] },
+    "source_url": { "type": "string" },
+    "query_used": { "type": "string" },
+    "found_at": { "type": "string", "format": "date-time" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "rationale": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

@@ -1,254 +1,224 @@
-# OSINT Missing Persons Canada
+﻿# OSINT Missing Persons Canada
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status: Active Development](https://img.shields.io/badge/status-active%20development-brightgreen.svg)]()
+Static-first public dashboard for Canadian missing children cases, with an optional Python backend for developer and investigator workflows.
 
-An open-source intelligence (OSINT) platform designed to help locate missing children in Canada. The platform ingests real-time case data from the [Missing Children Society of Canada](https://mcsc.ca/), then layers on active investigation capabilities including digital footprint analysis, web mention scanning, and facial recognition cross-matching.
+## Safety position
 
-> **This tool is built to cooperate with law enforcement.** All findings are intended to be reported to police — not for vigilante action.
+- Official facts and inferred context are separated.
+- The public site is for awareness and lawful public-lead triage only.
+- Use only lawful, public, non-authenticated sources.
+- No scraping behind logins, no doxxing, no contacting relatives, no vigilante action.
+- Every lead should be reported to the listed authority or the Missing Children Society of Canada.
 
----
+## Monorepo structure
 
-## Live Dashboard
+```text
+/
+  docs/                         # Main public product, static-first, GitHub Pages compatible
+    assets/
+    data/
+    app/
+      components/
+      views/
+      lib/
+      state/
+      styles/
+  backend/                      # Optional FastAPI backend for local sync/export/investigator mode
+    api/
+    core/
+    ingestion/
+    enrichment/
+    osint/
+      connectors/
+      scoring/
+      normalization/
+    models/
+    services/
+  shared/                       # Shared schemas, constants, and utilities
+    schemas/
+    constants/
+    utils/
+  scripts/                      # Local sync/export/build entrypoints
+  data/                         # Local cache, exports, public reference layers
+  tests/
+```
 
-**[VIEW LIVE DASHBOARD](https://osint-missing-persons-ca-production.up.railway.app)**
+**[VIEW LIVE DASHBOARD](https://consistentlearningguy.github.io/osint-missing-persons-ca/dashboard.html)**
 
-The public site is a free GitHub Pages app that reads the Missing Children Society of Canada public ArcGIS feed directly in the browser.
+## What changed from the old repo
 
-To publish it:
+Kept and migrated:
+- ArcGIS ingestion intent and SQLite-first local workflow.
+- FastAPI as the optional backend surface.
+- Static deployment path via `docs/`.
 
-1. Open GitHub repository `Settings`
-2. Open `Pages`
-3. Under `Build and deployment`, choose `Deploy from a branch`
-4. Select branch `main`
-5. Select folder `/docs`
-6. Save and wait a few minutes for `https://consistentlearningguy.github.io/osint-missing-persons-ca/`
+Replaced:
+- Railway-first deployment assumptions.
+- Jinja-backed public dashboard flow.
+- Direct coupling between the public site and backend runtime.
+- Monolithic `analysis/` behavior in favor of adapterized, feature-flagged OSINT connectors.
 
-The legacy FastAPI backend remains in the repo for development, but the free public deployment target is the static app in `docs/`.
+Downgraded to optional:
+- Face workflows.
+- Reverse image workflows.
+- SpiderFoot, SearXNG, theHarvester, Ahmia, Recon-ng, OnionSearch, and other integrations.
 
----
+## Required vs optional
 
-## What It Does
+Required for the free public dashboard:
+- `docs/`
+- `docs/data/public-cases.json` or live ArcGIS browser fetch
+- No secrets
+- No backend
 
-### Phase 1 -- Data Foundation (Complete)
+Optional for developer/investigator mode:
+- `backend/`
+- SQLite database in `data/db.sqlite`
+- Sync/export scripts
+- Feature-flagged connector setup
+- Optional face dependencies from `requirements-optional-face.txt`
+- Optional clear-web or dark-web-capable connectors from `requirements-optional-osint.txt`
 
-Ingests all active missing children cases from the MCSC public ArcGIS API. No scraping needed — structured JSON with coordinates, photos, and case metadata. Background scheduler keeps data in sync hourly.
+## Quick start
 
-### Phase 2 -- Digital Footprint Engine (Complete)
-
-Generates plausible usernames from a missing person's name and checks for account existence across 15 platforms with reliable detection. Simultaneously scans Google News, Reddit, and DuckDuckGo for web mentions. All leads are scored by confidence.
-
-### Phase 3 -- Facial Search Engine (Complete)
-
-Extracts faces from case photos, computes 128-dimensional face encodings using `face_recognition` (dlib), and compares across all cases to find potential matches. Supports image upload search and pluggable reverse image search providers (PimEyes, TinEye, Google Vision).
-
-### Upcoming
-
-| Phase | Name | Status |
-|-------|------|--------|
-| 4 | Trafficking Indicator Monitor | Planned |
-| 5 | Social Network Analysis | Planned |
-| 6 | Abductor Tracking | Planned |
-| 7 | Intelligence Hub | Planned |
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- Git
-
-Optional for Phase 3 face search:
-
-- [CMake](https://cmake.org/download/) and a native build toolchain for `dlib`
-
-### Setup
+### 1. Install base dependencies
 
 ```bash
-git clone https://github.com/consistentlearningguy/osint-missing-persons-ca.git
-cd osint-missing-persons-ca
-
-python -m venv venv
-
-# Windows:
-venv\Scripts\activate
-# Linux/macOS:
-source venv/bin/activate
-
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
-# Optional: enable Phase 3 face recognition locally
-# pip install -r requirements-face.txt
-cp .env.example .env
+copy .env.example .env
 ```
 
-### Initial Data Sync
+### 2. Use the static dashboard only
+
+Open `docs/index.html` locally or deploy `docs/` directly to GitHub Pages / Cloudflare Pages.
+
+The bundled `docs/data/public-cases.json` is a sample export for offline preview. Replace it with a live export using the scripts below, or use the in-browser live-source toggle.
+
+### 3. Optional backend mode
 
 ```bash
-python -m scripts.initial_sync
-```
-
-Fetches all active cases and photos from the MCSC API into `data/db.sqlite`.
-
-### Index Faces
-
-```bash
-python -m scripts.index_faces --match
-```
-
-Options: `--force` (re-index all), `--match` (run cross-case matching), `--case 8037` (single case), `--threshold 0.5` (custom threshold).
-
-### Start the Server
-
-```bash
+python -m scripts.sync_cases
+python -m scripts.export_public_data
 python -m backend.main
 ```
 
-Open **http://127.0.0.1:8000** in your browser.
+Backend endpoints:
+- `/healthz`
+- `/api/cases`
+- `/api/cases/stats`
+- `/api/exports/public.json`
+- `/api/exports/public.csv`
+- `/api/sync/cases`
+- `/api/sync/public-export`
+- `/api/investigations/...` when `ENABLE_INVESTIGATOR_MODE=true`
 
-For local development, set `HOST=127.0.0.1` and `DEBUG=true` in your `.env` file.
+## Static deployment on GitHub Pages
 
----
+1. Push the repo to GitHub.
+2. In repository settings, open `Pages`.
+3. Choose `Deploy from a branch`.
+4. Select branch `main` and folder `/docs`.
+5. Save.
 
-## Project Structure
+The public site does not need backend secrets. If you want fresher static data, run:
 
-```
-osint-missing-persons-ca/
-├── backend/
-│   ├── main.py                         # FastAPI app entrypoint
-│   ├── core/
-│   │   ├── config.py                   # Settings from environment variables
-│   │   ├── database.py                 # SQLAlchemy engine + session
-│   │   └── scheduler.py               # Background sync scheduler
-│   ├── ingestion/
-│   │   └── mcsc_client.py              # MCSC ArcGIS API client + photo downloader
-│   ├── analysis/
-│   │   ├── username_search.py          # Username enumeration (15 platforms)
-│   │   ├── web_mentions.py             # Web mention scanner (News, Reddit, DDG)
-│   │   ├── lead_scoring.py             # Confidence scoring engine
-│   │   ├── investigate.py              # Investigation orchestrator
-│   │   ├── face_engine.py              # Face detection, encoding, matching
-│   │   └── reverse_image_search.py     # Pluggable reverse image search
-│   ├── api/
-│   │   ├── cases.py                    # Case CRUD + stats + GeoJSON
-│   │   ├── sync.py                     # Manual sync trigger + history
-│   │   ├── investigations.py           # Investigation lifecycle + leads
-│   │   └── faces.py                    # Face index/match/search/review
-│   ├── models/
-│   │   ├── case.py                     # MissingCase, CasePhoto, SyncLog
-│   │   ├── investigation.py            # Investigation, Lead
-│   │   └── face.py                     # FaceEncoding, FaceMatch
-│   ├── templates/                      # Jinja2 HTML templates
-│   └── static/                         # CSS + JavaScript
-├── scripts/
-│   ├── initial_sync.py                 # One-time data sync
-│   └── index_faces.py                  # Face indexing CLI
-├── data/                               # Runtime data (gitignored)
-├── .env.example                        # Environment variable template
-├── Procfile                            # Railway deployment
-├── railway.toml                        # Railway build config
-└── requirements.txt
+```bash
+python -m scripts.sync_cases
+python -m scripts.build_docs
 ```
 
----
+Then commit the updated `docs/data/` files.
 
-## API Reference
+## Optional connector setup
 
-### Cases
+All connectors are disabled by default.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/cases` | List cases (filter by province, status, name, age) |
-| `GET` | `/api/cases/stats` | Aggregate statistics |
-| `GET` | `/api/cases/geojson` | GeoJSON for map rendering |
-| `GET` | `/api/cases/{objectid}` | Single case with photos |
+Feature flags:
+- `ENABLE_INVESTIGATOR_MODE=true`
+- `ENABLE_CLEAR_WEB_CONNECTORS=true`
+- `ENABLE_PUBLIC_PROFILE_CHECKS=true`
+- `ENABLE_REVERSE_IMAGE_HOOKS=true`
+- `ENABLE_LOCAL_FACE_WORKFLOW=true`
+- `ENABLE_DARK_WEB_CONNECTORS=true`
+- `ENABLE_EXPERIMENTAL_CONNECTORS=true`
 
-### Data Sync
+Environment hooks:
+- `SEARXNG_URL`
+- `GDELT_DOC_API_URL`
+- `SPIDERFOOT_URL`
+- `THEHARVESTER_BINARY`
+- `RECONNG_BINARY`
+- `ONIONSEARCH_BINARY`
+- `TOR_PROXY_URL`
+- `AHMIA_SEARCH_URL`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/sync` | Trigger manual sync from MCSC |
-| `GET` | `/api/sync/history` | Sync log entries |
+Current adapter status:
+- `searxng`: working HTTP connector when a SearXNG instance is configured, now using grouped social/profile/timeline query pivots.
+- `gdelt-doc`: working passive news/timeline connector using the GDELT DOC 2.0 article API.
+- `ahmia`: conservative lawful index/search connector, disabled by default.
+- `spiderfoot`: scaffold only.
+- `theharvester`: scaffold only.
+- `recon-ng`: legacy/experimental scaffold only.
+- `onionsearch`: experimental scaffold only.
+- `mock-public-search`: disabled by default and intended for explicit offline verification/tests only.
+- `resource-pack`: investigator-mode case playbook with category coverage, official cross-checks, news/archive pivots, geo open-data pivots, and reverse-image launch points.
 
-### Investigations
+## Optional face module
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/investigations/{case_objectid}` | Start OSINT investigation |
-| `GET` | `/api/investigations/{case_objectid}` | Investigation status + history |
-| `GET` | `/api/investigations/{case_objectid}/leads` | Leads (filter by type, confidence, reviewed) |
-| `PATCH` | `/api/investigations/leads/{lead_id}` | Review a lead |
+Install only for local investigator workflows:
 
-### Facial Recognition
+```bash
+pip install -r requirements-optional-face.txt
+```
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/faces/index` | Index faces from case photos |
-| `GET` | `/api/faces/stats` | Face index statistics |
-| `GET` | `/api/faces/case/{case_objectid}` | Face data for a case |
-| `POST` | `/api/faces/match` | Run cross-case face matching |
-| `GET` | `/api/faces/matches` | List face matches |
-| `POST` | `/api/faces/search` | Upload image to search all faces |
-| `PATCH` | `/api/faces/matches/{match_id}` | Review a face match |
+This rebuild does not make face workflows a hard dependency for deploy/build.
 
-Full interactive docs at `/docs` (Swagger UI) when running.
+## Scripts
 
----
+- `python -m scripts.sync_cases`: pull open cases from the public MCSC ArcGIS feed into SQLite.
+- `python -m scripts.export_public_data`: write JSON/CSV exports.
+- `python -m scripts.build_docs`: regenerate `docs/data/public-cases.json` and `docs/data/reference-layers.json`.
+- `python -m scripts.refresh_osint_cache <case_id>`: run enabled investigator-mode connectors for one case.
 
-## Configuration
+## Tests
 
-All settings via environment variables (see `.env.example`):
+```bash
+pytest
+```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `sqlite:///data/db.sqlite` | Database connection string |
-| `SYNC_INTERVAL_MINUTES` | `60` | Background sync frequency |
-| `HOST` | `0.0.0.0` | Server bind address |
-| `PORT` | `8000` | Server port |
-| `DEBUG` | `false` | Enable debug mode + hot reload |
-| `FACE_DETECTION_MODEL` | `hog` | `hog` (fast/CPU) or `cnn` (accurate/GPU) |
-| `FACE_MATCH_THRESHOLD` | `0.55` | Face distance threshold (lower = stricter) |
-| `PIMEYES_API_KEY` | — | Optional: PimEyes reverse image search |
-| `GOOGLE_VISION_API_KEY` | — | Optional: Google Vision |
-| `TINEYE_API_KEY` | — | Optional: TinEye |
+Current tests cover:
+- ArcGIS normalization
+- lead scoring rationale
+- timeline derivation
+- investigator query planning
+- resource-pack generation
 
----
+## Public app behavior
 
-## Tech Stack
+The static dashboard supports:
+- live case count
+- province and city filters
+- fuzzy name search
+- min/max age filter
+- sorting by recency, age, status, and risk rank
+- map/list/grid interplay
+- case detail panel with facts vs inference separation
+- source attribution badges
+- recently updated panel
+- printable packet workflow
+- shareable filtered URLs
+- province, age, status, and trend charts
+- authority contact links
+- safe-help guidance and reporting checklists
+- border/transit/highway/youth-service context indicators from bundled public reference layers
 
-- **Backend:** Python 3.11+, FastAPI, SQLAlchemy, SQLite
-- **Frontend:** Jinja2, Tailwind CSS, Leaflet.js
-- **Face Recognition:** optional extra via `requirements-face.txt` using face_recognition (dlib)
-- **HTTP Client:** httpx (async)
-- **Scheduler:** APScheduler
-- **Deployment:** Railway (Nixpacks)
+## Migration notes from Railway-oriented app
 
----
-
-## Data Source
-
-All case data comes from the **Missing Children Society of Canada (MCSC)** public ArcGIS FeatureServer API. This is publicly accessible structured data provided by a registered Canadian non-profit. No scraping, no authentication, no terms of service violations.
-
----
-
-## Legal and Ethical Use
-
-- This platform **assists law enforcement** — it does not replace it. Report all leads to the police authority listed on each case.
-- **Do not** use this tool for vigilante action, harassment, or any purpose that could endanger a missing person's safety.
-- Username enumeration and web scanning use only publicly accessible endpoints with no authentication bypass.
-- Face matching is performed locally. No biometric data leaves your machine unless you configure optional reverse image search API keys.
-
----
-
-## Contributing
-
-This project is in active development. If you are a law enforcement professional, data scientist, or developer interested in helping locate missing children, please open an issue or start a discussion.
-
----
-
-## License
-
-[MIT](LICENSE)
+- Railway config is no longer part of the core architecture.
+- The main product is now `docs/`, not the backend runtime.
+- Backend mode is local/optional and can be hosted separately if needed.
+- Old monolithic analysis behavior is replaced by `backend/osint/connectors/` plus feature flags.
+- Public hosting is free-static first; backend secrets are not required for the public product.
 

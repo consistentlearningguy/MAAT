@@ -24,11 +24,30 @@ env/
 
 # Data (runtime — not tracked)
 data/db.sqlite
+data/*.sqlite
 *.sqlite3
 data/faces/*
 data/images/*
+data/cache/*
+data/exports/*
+data/investigations/*
 !data/faces/.gitkeep
 !data/images/.gitkeep
+!data/cache/.gitkeep
+!data/exports/.gitkeep
+
+# Debug / diagnostic output
+data/_*.txt
+data/_*.json
+data/_*.log
+
+# Backup / temp files
+*.bak
+*.orig
+*.tmp
+
+# Debug scripts (underscore-prefixed)
+scripts/_*.py
 
 # Logs
 logs/
@@ -42,3 +61,4 @@ Thumbs.db
 
 # Tools
 .opencode/
+.windsurf/

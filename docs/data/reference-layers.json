@@ -1,0 +1,26 @@
+﻿{
+  "airports": [
+    {"label": "Toronto Pearson International Airport", "latitude": 43.6777, "longitude": -79.6248, "source_url": "https://www.torontopearson.com/", "jurisdiction": "Ontario"},
+    {"label": "Vancouver International Airport", "latitude": 49.1947, "longitude": -123.1792, "source_url": "https://www.yvr.ca/", "jurisdiction": "British Columbia"},
+    {"label": "Winnipeg Richardson International Airport", "latitude": 49.9100, "longitude": -97.2399, "source_url": "https://www.waa.ca/", "jurisdiction": "Manitoba"},
+    {"label": "Montreal-Trudeau International Airport", "latitude": 45.4706, "longitude": -73.7408, "source_url": "https://www.admtl.com/", "jurisdiction": "Quebec"}
+  ],
+  "borderCrossings": [
+    {"label": "Peace Bridge", "latitude": 42.9057, "longitude": -78.9058, "source_url": "https://www.peacebridge.com/", "jurisdiction": "Ontario"},
+    {"label": "Douglas Border Crossing", "latitude": 49.0032, "longitude": -122.7574, "source_url": "https://www.cbsa-asfc.gc.ca/", "jurisdiction": "British Columbia"},
+    {"label": "Emerson Port of Entry", "latitude": 49.0008, "longitude": -97.2147, "source_url": "https://www.cbsa-asfc.gc.ca/", "jurisdiction": "Manitoba"},
+    {"label": "Saint-Bernard-de-Lacolle Border Crossing", "latitude": 45.0104, "longitude": -73.4498, "source_url": "https://www.cbsa-asfc.gc.ca/", "jurisdiction": "Quebec"}
+  ],
+  "highways": [
+    {"label": "Highway 401 corridor", "latitude": 43.7000, "longitude": -79.4000, "source_url": "https://511on.ca/", "jurisdiction": "Ontario"},
+    {"label": "Highway 1 corridor", "latitude": 49.1300, "longitude": -122.8440, "source_url": "https://www.drivebc.ca/", "jurisdiction": "British Columbia"},
+    {"label": "Perimeter Highway", "latitude": 49.8951, "longitude": -97.1384, "source_url": "https://www.manitoba511.ca/", "jurisdiction": "Manitoba"},
+    {"label": "Autoroute 20 corridor", "latitude": 45.5017, "longitude": -73.5673, "source_url": "https://www.quebec511.info/", "jurisdiction": "Quebec"}
+  ],
+  "youthServices": [
+    {"label": "Covenant House Toronto", "latitude": 43.6644, "longitude": -79.3810, "source_url": "https://covenanthousetoronto.ca/", "jurisdiction": "Ontario"},
+    {"label": "Covenant House Vancouver", "latitude": 49.2822, "longitude": -123.1087, "source_url": "https://www.covenanthousebc.org/", "jurisdiction": "British Columbia"},
+    {"label": "Ndinawemaaganag Endaawaad", "latitude": 49.8954, "longitude": -97.1246, "source_url": "https://newcentre.org/", "jurisdiction": "Manitoba"},
+    {"label": "Dans la rue", "latitude": 45.5262, "longitude": -73.5589, "source_url": "https://danslarue.org/", "jurisdiction": "Quebec"}
+  ]
+}

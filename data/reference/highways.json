@@ -1,0 +1,30 @@
+﻿[
+  {
+    "label": "Highway 401 corridor",
+    "latitude": 43.7000,
+    "longitude": -79.4000,
+    "source_url": "https://511on.ca/",
+    "jurisdiction": "Ontario"
+  },
+  {
+    "label": "Highway 1 corridor",
+    "latitude": 49.1300,
+    "longitude": -122.8440,
+    "source_url": "https://www.drivebc.ca/",
+    "jurisdiction": "British Columbia"
+  },
+  {
+    "label": "Perimeter Highway",
+    "latitude": 49.8951,
+    "longitude": -97.1384,
+    "source_url": "https://www.manitoba511.ca/",
+    "jurisdiction": "Manitoba"
+  },
+  {
+    "label": "Autoroute 20 corridor",
+    "latitude": 45.5017,
+    "longitude": -73.5673,
+    "source_url": "https://www.quebec511.info/",
+    "jurisdiction": "Quebec"
+  }
+]

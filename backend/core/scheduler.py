@@ -1,48 +1,46 @@
-"""APScheduler setup for periodic data synchronization."""
+﻿"""Optional background scheduler for sync and export jobs."""
+
+from __future__ import annotations
 
 import asyncio
-from apscheduler.schedulers.background import BackgroundScheduler
-from loguru import logger
+
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+except ModuleNotFoundError:  # pragma: no cover - import fallback
+    BackgroundScheduler = None
 
 from backend.core.config import settings
-from backend.ingestion.mcsc_client import mcsc_client
+from backend.core.database import SessionLocal
+from backend.services.case_service import CaseService
+from backend.services.export_service import ExportService
 
-scheduler = BackgroundScheduler()
-
-
-def _run_sync():
-    """Wrapper to run async sync in a background thread."""
-    logger.info("Scheduled sync triggered...")
-    loop = None
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(mcsc_client.sync_all_cases())
-        logger.info(f"Scheduled sync completed: {result}")
-    except Exception as e:
-        logger.error(f"Scheduled sync failed: {e}")
-    finally:
-        if loop:
-            loop.close()
+scheduler = BackgroundScheduler(timezone="UTC") if BackgroundScheduler else None
 
 
-def start_scheduler():
-    """Start the background scheduler with sync job."""
+def _run_coroutine(coro):
+    asyncio.run(coro)
+
+
+def scheduled_sync_and_export() -> None:
+    with SessionLocal() as session:
+        _run_coroutine(CaseService(session).sync_from_mcsc())
+        ExportService(session).write_public_export(settings.public_export_path)
+
+
+def start_scheduler() -> None:
+    if scheduler is None or scheduler.running:
+        return
     scheduler.add_job(
-        _run_sync,
-        "interval",
-        minutes=settings.SYNC_INTERVAL_MINUTES,
-        id="mcsc_sync",
+        scheduled_sync_and_export,
+        trigger="interval",
+        minutes=settings.sync_interval_minutes,
+        id="sync_and_export",
         replace_existing=True,
     )
     scheduler.start()
-    logger.info(
-        f"Scheduler started. Sync interval: {settings.SYNC_INTERVAL_MINUTES} minutes"
-    )
 
 
-def stop_scheduler():
-    """Shut down the scheduler gracefully."""
-    if scheduler.running:
-        scheduler.shutdown(wait=False)
-        logger.info("Scheduler stopped.")
+def stop_scheduler() -> None:
+    if scheduler is None or not scheduler.running:
+        return
+    scheduler.shutdown(wait=False)

@@ -1,0 +1,30 @@
+﻿[
+  {
+    "label": "Peace Bridge",
+    "latitude": 42.9057,
+    "longitude": -78.9058,
+    "source_url": "https://www.peacebridge.com/",
+    "jurisdiction": "Ontario"
+  },
+  {
+    "label": "Douglas Border Crossing",
+    "latitude": 49.0032,
+    "longitude": -122.7574,
+    "source_url": "https://www.cbsa-asfc.gc.ca/",
+    "jurisdiction": "British Columbia"
+  },
+  {
+    "label": "Emerson Port of Entry",
+    "latitude": 49.0008,
+    "longitude": -97.2147,
+    "source_url": "https://www.cbsa-asfc.gc.ca/",
+    "jurisdiction": "Manitoba"
+  },
+  {
+    "label": "Saint-Bernard-de-Lacolle Border Crossing",
+    "latitude": 45.0104,
+    "longitude": -73.4498,
+    "source_url": "https://www.cbsa-asfc.gc.ca/",
+    "jurisdiction": "Quebec"
+  }
+]

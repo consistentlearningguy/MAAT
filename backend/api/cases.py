@@ -1,198 +1,87 @@
-"""API routes for missing person cases."""
+﻿"""Case routes."""
 
-from typing import Optional
+from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy import func, extract
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from backend.core.database import get_db
-from backend.models.case import MissingCase, CasePhoto
+from backend.models.case import Case
+from backend.models.investigation import InvestigationRun, Lead
+from backend.services.case_service import CaseService
+from backend.services.export_service import ExportService
 
 router = APIRouter(prefix="/api/cases", tags=["cases"])
 
 
 @router.get("")
-def list_cases(
-    province: Optional[str] = Query(None, description="Filter by province code"),
-    status: Optional[str] = Query(None, description="Filter by status (vulnerable, abudction, amberalert, childsearchalert, missing)"),
-    case_status: Optional[str] = Query("open", description="Filter by case status (open, located, archived, expired)"),
-    search: Optional[str] = Query(None, description="Search by name or city"),
-    min_age: Optional[int] = Query(None, description="Minimum age filter"),
-    max_age: Optional[int] = Query(None, description="Maximum age filter"),
-    sort_by: str = Query("missing_since", description="Sort field"),
-    order: str = Query("desc", description="Sort order (asc/desc)"),
-    limit: int = Query(50, ge=1, le=500),
-    offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db),
-):
-    """List and search missing person cases."""
-    query = db.query(MissingCase)
-
-    # Apply filters
-    if province:
-        query = query.filter(MissingCase.province == province)
-    if status:
-        query = query.filter(MissingCase.status == status)
-    if case_status:
-        query = query.filter(MissingCase.case_status == case_status)
-    if search:
-        search_term = f"%{search}%"
-        query = query.filter(
-            (MissingCase.name.ilike(search_term))
-            | (MissingCase.city.ilike(search_term))
-            | (MissingCase.description.ilike(search_term))
-        )
-    if min_age is not None:
-        query = query.filter(MissingCase.age >= min_age)
-    if max_age is not None:
-        query = query.filter(MissingCase.age <= max_age)
-
-    # Get total count before pagination
-    total = query.count()
-
-    # Apply sorting
-    sort_column = getattr(MissingCase, sort_by, MissingCase.missing_since)
-    if order.lower() == "asc":
-        query = query.order_by(sort_column.asc())
-    else:
-        query = query.order_by(sort_column.desc())
-
-    # Apply pagination
-    cases = query.offset(offset).limit(limit).all()
-
+def list_cases(db: Session = Depends(get_db)) -> dict:
+    service = CaseService(db)
+    cases = service.list_cases()
     return {
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "cases": [c.to_dict() for c in cases],
+        "total": len(cases),
+        "cases": [_serialize_case_summary(case) for case in cases],
+    }
+
+
+def _serialize_case_summary(case: Case) -> dict:
+    """Serialize a case with fields needed by the dashboard sidebar."""
+    primary_photo = next((p for p in case.photos if p.is_primary), None) if case.photos else None
+    photo_url = primary_photo.url if primary_photo else (case.photos[0].url if case.photos else None)
+    return {
+        "id": case.id,
+        "name": case.name,
+        "province": case.province,
+        "city": case.city,
+        "status": case.status,
+        "age": case.age,
+        "gender": case.gender,
+        "missing_since": case.missing_since.isoformat() if case.missing_since else None,
+        "latitude": case.latitude,
+        "longitude": case.longitude,
+        "photo_url": photo_url,
     }
 
 
 @router.get("/stats")
-def get_stats(
-    case_status: Optional[str] = Query("open"),
-    db: Session = Depends(get_db),
-):
-    """Get aggregate statistics about cases."""
-    base_query = db.query(MissingCase)
-    if case_status:
-        base_query = base_query.filter(MissingCase.case_status == case_status)
-
-    total = base_query.count()
-
-    # By province
-    by_province = (
-        base_query.with_entities(
-            MissingCase.province, func.count(MissingCase.objectid)
-        )
-        .group_by(MissingCase.province)
-        .all()
-    )
-
-    # By status
-    by_status = (
-        base_query.with_entities(
-            MissingCase.status, func.count(MissingCase.objectid)
-        )
-        .group_by(MissingCase.status)
-        .all()
-    )
-
-    # By age brackets
-    age_brackets = []
-    brackets = [(0, 5), (6, 10), (11, 15), (16, 18), (19, 25), (26, 100)]
-    for low, high in brackets:
-        count = base_query.filter(
-            MissingCase.age >= low, MissingCase.age <= high
-        ).count()
-        label = f"{low}-{high}" if high < 100 else f"{low}+"
-        age_brackets.append({"range": label, "count": count})
-
-    # By year of disappearance
-    by_year = (
-        base_query.with_entities(
-            extract("year", MissingCase.missing_since).label("year"),
-            func.count(MissingCase.objectid),
-        )
-        .filter(MissingCase.missing_since.isnot(None))
-        .group_by("year")
-        .order_by(extract("year", MissingCase.missing_since).desc())
-        .all()
-    )
-
-    # Recent cases (last 30 days)
-    from datetime import datetime, timezone, timedelta
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
-    recent_count = base_query.filter(
-        MissingCase.missing_since >= thirty_days_ago
-    ).count()
-
-    # Amber alerts count
-    amber_count = base_query.filter(MissingCase.status == "amberalert").count()
-
-    return {
-        "total": total,
-        "recent_30_days": recent_count,
-        "amber_alerts": amber_count,
-        "by_province": {prov: count for prov, count in by_province if prov},
-        "by_status": {status: count for status, count in by_status if status},
-        "by_age": age_brackets,
-        "by_year": {str(int(year)): count for year, count in by_year if year},
-    }
+def stats(db: Session = Depends(get_db)) -> dict:
+    base_stats = ExportService(db).build_public_export().get("stats", {})
+    # Add investigation stats for dashboard
+    investigated_count = db.query(func.count(func.distinct(InvestigationRun.case_id))).scalar() or 0
+    total_leads = db.query(func.count(Lead.id)).scalar() or 0
+    base_stats["investigated_count"] = investigated_count
+    base_stats["total_leads"] = total_leads
+    return base_stats
 
 
-@router.get("/geojson")
-def get_geojson(
-    province: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
-    case_status: Optional[str] = Query("open"),
-    search: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-):
-    """Get cases as GeoJSON FeatureCollection for map rendering."""
-    query = db.query(MissingCase).filter(
-        MissingCase.latitude.isnot(None),
-        MissingCase.longitude.isnot(None),
-    )
-
-    if province:
-        query = query.filter(MissingCase.province == province)
-    if status:
-        query = query.filter(MissingCase.status == status)
-    if case_status:
-        query = query.filter(MissingCase.case_status == case_status)
-    if search:
-        search_term = f"%{search}%"
-        query = query.filter(
-            (MissingCase.name.ilike(search_term))
-            | (MissingCase.city.ilike(search_term))
-        )
-
-    cases = query.all()
-
-    features = [c.to_geojson_feature() for c in cases if c.latitude and c.longitude]
-
-    return {
-        "type": "FeatureCollection",
-        "features": features,
-    }
-
-
-@router.get("/{objectid}")
-def get_case(objectid: int, db: Session = Depends(get_db)):
-    """Get a single case by objectid with photos."""
-    case = db.query(MissingCase).filter(MissingCase.objectid == objectid).first()
-    if not case:
+@router.get("/{case_id}")
+def get_case(case_id: int, db: Session = Depends(get_db)) -> dict:
+    case = db.get(Case, case_id)
+    if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
-
-    # Load photos
-    photos = (
-        db.query(CasePhoto)
-        .filter(CasePhoto.case_objectid == objectid)
-        .all()
-    )
-
-    result = case.to_dict()
-    result["photos"] = [p.to_dict() for p in photos]
-    return result
+    primary_photo = next((p for p in case.photos if p.is_primary), None) if case.photos else None
+    photo_url = primary_photo.url if primary_photo else (case.photos[0].url if case.photos else None)
+    return {
+        "id": case.id,
+        "name": case.name,
+        "aliases": case.aliases or [],
+        "age": case.age,
+        "gender": case.gender,
+        "province": case.province,
+        "city": case.city,
+        "status": case.status,
+        "missing_since": case.missing_since.isoformat() if case.missing_since else None,
+        "latitude": case.latitude,
+        "longitude": case.longitude,
+        "photo_url": photo_url,
+        "official_summary_html": case.official_summary_html,
+        "authority_name": case.authority_name,
+        "authority_email": case.authority_email,
+        "authority_phone": case.authority_phone,
+        "authority_case_url": case.authority_case_url,
+        "mcsc_email": case.mcsc_email,
+        "mcsc_phone": case.mcsc_phone,
+        "risk_flags": case.risk_flags or [],
+        "photos": [{"url": p.url, "caption": p.caption, "is_primary": p.is_primary} for p in (case.photos or [])],
+    }

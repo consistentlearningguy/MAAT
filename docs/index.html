@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Missing Persons Canada Live Dashboard</title>
+    <title>Missing Persons Canada | Active Profiles</title>
     <meta
         name="description"
-        content="Live public dashboard of active missing children cases in Canada. Search cases, explore the map, and find official reporting contacts."
+        content="Full-page dashboard of active missing children profiles in Canada, with map, filters, official facts, and evidence routing into the investigation workspace."
     >
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -18,180 +18,333 @@
         crossorigin=""
     >
     <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./app/styles/print.css">
 </head>
-<body>
-    <div class="page-shell">
-        <div class="page-glow page-glow-a"></div>
-        <div class="page-glow page-glow-b"></div>
+<body data-page="profiles">
+    <div class="signal-ribbon">
+        <div class="signal-ribbon-track" id="signalRibbon">
+            <span>Loading profile signal ribbon...</span>
+        </div>
+    </div>
 
-        <header class="masthead">
-            <div class="brand-lockup">
-                <div class="brand-mark">MP</div>
-                <div>
-                    <p class="eyebrow">Live Public Dashboard</p>
-                    <h1>Missing Persons Canada</h1>
+    <div class="page-shell">
+        <header class="masthead reveal-up" style="--delay: 40ms;">
+            <div>
+                <div class="brand-lockup">
+                    <div class="brand-mark">MP</div>
+                    <div>
+                        <p class="eyebrow">Public Field Console</p>
+                        <h1>Missing Persons Canada</h1>
+                    </div>
                 </div>
             </div>
 
-            <div class="masthead-actions">
-                <span class="status-pill" id="feedStatus">Connecting to live feed</span>
-                <a class="action-link" href="#help">How To Help</a>
+            <div class="masthead-meta">
+                <div class="nav-cluster">
+                    <a id="profilesNavLink" class="nav-link is-active" href="./index.html">Active Profiles</a>
+                    <a id="evidenceNavLink" class="nav-link" href="./evidence.html">Evidence Lab</a>
+                </div>
+                <div class="status-stack">
+                    <span class="status-pill is-static" id="dataModeBadge">Loading feed</span>
+                    <span class="status-pill muted" id="feedTimestamp">Awaiting dataset</span>
+                </div>
             </div>
         </header>
 
-        <main class="layout">
-            <section class="hero-panel">
-                <div class="hero-copy">
-                    <p class="eyebrow">Public Awareness App</p>
-                    <h2>Live case tracking built for visibility, signal, and direct reporting.</h2>
-                    <p class="hero-text">
-                        This site pulls active missing children cases directly from the Missing Children Society of Canada public ArcGIS feed.
-                        Use it to search, share, and route tips to the listed authority or MCSC. Do not use it for harassment or vigilante action.
-                    </p>
-                </div>
+        <main>
+            <section class="hero-grid reveal-up" style="--delay: 90ms;">
+                <article class="hero-panel hero-intro">
+                    <div class="masthead-topline">
+                        <p class="eyebrow">Active Profiles</p>
+                        <span class="masthead-code">SEARCH / MAP / REPORT</span>
+                    </div>
 
-                <div class="hero-metrics">
-                    <article class="metric-card">
-                        <span class="metric-label">Active cases</span>
-                        <strong class="metric-value" id="statTotal">--</strong>
-                    </article>
-                    <article class="metric-card">
-                        <span class="metric-label">High-risk alerts</span>
-                        <strong class="metric-value accent-warm" id="statHighRisk">--</strong>
-                    </article>
-                    <article class="metric-card">
-                        <span class="metric-label">New in 30 days</span>
-                        <strong class="metric-value accent-fresh" id="statRecent">--</strong>
-                    </article>
-                    <article class="metric-card">
-                        <span class="metric-label">Last feed update</span>
-                        <strong class="metric-value metric-small" id="statUpdated">--</strong>
-                    </article>
-                </div>
+                    <div class="headline-stack">
+                        <h2>Full-page visibility for active public profiles.</h2>
+                        <div class="headline-slider" aria-hidden="true">
+                            <div class="headline-slider-track">
+                                <span>Locate official facts</span>
+                                <span>Compare province clusters</span>
+                                <span>Open the evidence lab</span>
+                                <span>Route tips to authorities</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="masthead-copy">
+                        This dashboard keeps the official case layer, geospatial context, reporting routes, charts, and map/detail workflow in one full-page workspace.
+                        Use the Evidence Lab when you need the optional backend to gather and review public leads online.
+                    </p>
+
+                    <div class="hero-status-grid">
+                        <div class="status-cell">
+                            <div class="status-dot live"></div>
+                            <strong>Live when possible</strong>
+                            <p>Prefers the public MCSC ArcGIS feed and falls back to the bundled export.</p>
+                        </div>
+                        <div class="status-cell">
+                            <div class="status-dot inference"></div>
+                            <strong>Facts stay separated</strong>
+                            <p>Official facts and inferred context remain visibly distinct throughout the dossier.</p>
+                        </div>
+                        <div class="status-cell">
+                            <div class="status-dot safe"></div>
+                            <strong>Report, do not intervene</strong>
+                            <p>Every action path routes back to the listed authority or MCSC rather than vigilante behavior.</p>
+                        </div>
+                    </div>
+
+                    <p class="panel-caption" id="feedSafetyNotice">Loading dataset guidance...</p>
+
+                    <div class="action-row">
+                        <button class="primary-button" id="liveModeButton" type="button">Use live feed</button>
+                        <button class="ghost-button" id="resetFiltersButton" type="button">Reset filters</button>
+                        <a class="link-button" id="openEvidencePage" href="./evidence.html">Open Evidence Lab</a>
+                    </div>
+                </article>
+
+                <section class="panel signal-stream-panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Signal Rail</p>
+                            <h3>Sliding text of current scope</h3>
+                        </div>
+                        <span class="panel-badge">Live marquee</span>
+                    </div>
+                    <div class="signal-ticker" id="signalTicker">
+                        <div class="empty-state">Building signal summary...</div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Current Scope</p>
+                            <h3>Field metrics</h3>
+                        </div>
+                        <span class="panel-badge">Real-time summary</span>
+                    </div>
+                    <div class="metric-grid" id="metricsGrid">
+                        <div class="empty-state">Loading metrics...</div>
+                    </div>
+                </section>
             </section>
 
-            <section class="control-bar">
-                <label class="field search-field">
+            <section class="control-bar reveal-up" style="--delay: 140ms;">
+                <label class="field">
                     <span class="field-label">Search</span>
-                    <input id="searchInput" type="search" placeholder="Name, city, province">
+                    <input id="searchInput" type="search" placeholder="Name, alias, city, province">
                 </label>
-
                 <label class="field">
                     <span class="field-label">Province</span>
                     <select id="provinceSelect">
                         <option value="">All provinces</option>
                     </select>
                 </label>
-
                 <label class="field">
-                    <span class="field-label">Case type</span>
+                    <span class="field-label">City</span>
+                    <select id="citySelect">
+                        <option value="">All cities</option>
+                    </select>
+                </label>
+                <label class="field">
+                    <span class="field-label">Min age</span>
+                    <input id="minAgeInput" type="number" min="0" max="18" placeholder="0">
+                </label>
+                <label class="field">
+                    <span class="field-label">Max age</span>
+                    <input id="maxAgeInput" type="number" min="0" max="18" placeholder="18">
+                </label>
+                <label class="field">
+                    <span class="field-label">Status</span>
                     <select id="statusSelect">
-                        <option value="">All types</option>
+                        <option value="">All statuses</option>
                         <option value="missing">Missing</option>
                         <option value="vulnerable">Vulnerable</option>
                         <option value="abudction">Abduction</option>
+                        <option value="abduction">Abduction</option>
                         <option value="amberalert">Amber Alert</option>
                         <option value="childsearchalert">Child Search Alert</option>
                     </select>
                 </label>
-
                 <label class="field">
                     <span class="field-label">Sort</span>
                     <select id="sortSelect">
-                        <option value="missing-desc">Newest missing date</option>
-                        <option value="missing-asc">Oldest missing date</option>
+                        <option value="recency">Most recent</option>
+                        <option value="risk">Highest risk</option>
+                        <option value="status">Status A-Z</option>
+                        <option value="name">Name A-Z</option>
                         <option value="age-asc">Youngest first</option>
                         <option value="age-desc">Oldest first</option>
-                        <option value="name-asc">Name A-Z</option>
                     </select>
                 </label>
-            </section>
-
-            <section class="dashboard-grid">
-                <div class="list-column card-surface">
-                    <div class="panel-heading">
-                        <div>
-                            <p class="eyebrow">Case Watch</p>
-                            <h3>Active profiles</h3>
-                        </div>
-                        <span class="panel-meta" id="resultsCount">-- results</span>
-                    </div>
-
-                    <div class="province-strip" id="provinceStrip"></div>
-
-                    <div class="case-list" id="caseList">
-                        <div class="empty-state loading-state">Loading live cases...</div>
+                <div class="field view-field">
+                    <span class="field-label">View</span>
+                    <div class="toggle-row">
+                        <button class="toggle-button active" data-view="list" type="button">List</button>
+                        <button class="toggle-button" data-view="grid" type="button">Grid</button>
                     </div>
                 </div>
+            </section>
 
-                <div class="map-column card-surface">
-                    <div class="panel-heading">
+            <section class="workspace-grid reveal-up" style="--delay: 180ms;">
+                <section class="panel list-panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Active Profiles</p>
+                            <h3>Case watch</h3>
+                        </div>
+                        <span class="panel-count" id="resultsCount">0 results</span>
+                    </div>
+                    <div class="province-chip-row" id="provinceStrip"></div>
+                    <div class="case-list list-view" id="caseList">
+                        <div class="empty-state">Loading active profiles...</div>
+                    </div>
+                </section>
+
+                <section class="panel detail-panel">
+                    <div id="detailPanel" class="detail-panel">
+                        <div class="empty-state">
+                            <p class="eyebrow">Select a case</p>
+                            <h3>Open a profile to inspect official facts, public context, and reporting routes.</h3>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel map-panel">
+                    <div class="panel-head">
                         <div>
                             <p class="eyebrow">National Map</p>
                             <h3>Last known locations</h3>
                         </div>
                         <button class="ghost-button" id="fitMapButton" type="button">Fit to results</button>
                     </div>
-                    <div id="map" class="map-frame" aria-label="Map of active missing person cases"></div>
-                </div>
-
-                <aside class="detail-column card-surface">
-                    <div id="detailEmpty" class="detail-empty">
-                        <p class="eyebrow">Select a case</p>
-                        <h3>Open a profile to see reporting contacts and share-ready details.</h3>
-                        <p>
-                            Choose a marker or a card to open the current case summary, official authority contacts, and image gallery.
-                        </p>
-                    </div>
-
-                    <div id="detailPanel" class="detail-panel hidden">
-                        <div class="detail-topline">
-                            <span class="status-tag" id="detailStatus">--</span>
-                            <span class="detail-meta" id="detailMeta">--</span>
-                        </div>
-
-                        <h3 id="detailName">--</h3>
-                        <p class="detail-location" id="detailLocation">--</p>
-                        <p class="detail-summary" id="detailSummary">--</p>
-
-                        <div class="detail-gallery" id="detailGallery"></div>
-
-                        <dl class="detail-grid" id="detailGrid"></dl>
-
-                        <div class="detail-html card-inset" id="detailDescription"></div>
-
-                        <div class="action-stack">
-                            <a id="authorityLink" class="primary-action" href="#" target="_blank" rel="noopener">Open authority case page</a>
-                            <a id="mcscEmailLink" class="secondary-action" href="#">Email MCSC tips</a>
-                            <a id="authorityPhoneLink" class="secondary-action" href="#">Call listed authority</a>
-                        </div>
-                    </div>
-                </aside>
+                    <div class="map-frame" id="map" aria-label="Map of active missing person cases"></div>
+                </section>
             </section>
 
-            <section class="help-grid" id="help">
-                <article class="help-card">
-                    <p class="eyebrow">How To Help</p>
-                    <h3>Report to the listed authority first.</h3>
-                    <p>
-                        If you recognize a person or location, contact the agency shown on the case or MCSC directly.
-                        Preserve screenshots, times, and location context when reporting.
-                    </p>
-                </article>
-                <article class="help-card">
-                    <p class="eyebrow">Share With Care</p>
-                    <h3>Amplify the profile, not rumors.</h3>
-                    <p>
-                        Share official case details and photos. Avoid speculation, doxxing, or naming uninvolved people.
-                    </p>
-                </article>
-                <article class="help-card">
-                    <p class="eyebrow">Live Source</p>
-                    <h3>Data comes from MCSC’s public ArcGIS feed.</h3>
-                    <p>
-                        This app reads public case records directly in the browser, so the live site can run free on static hosting.
-                    </p>
-                </article>
+            <section class="monitor-grid reveal-up" style="--delay: 220ms;">
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Signal Queue</p>
+                            <h3>Priority review order</h3>
+                        </div>
+                    </div>
+                    <div class="signal-list" id="signalQueue">
+                        <div class="empty-state">Waiting for filtered cases...</div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Recent Updates</p>
+                            <h3>Latest visible records</h3>
+                        </div>
+                    </div>
+                    <div class="stack-list" id="recentUpdatesList">
+                        <div class="empty-state">Waiting for updates...</div>
+                    </div>
+                </section>
+            </section>
+
+            <section class="secondary-grid reveal-up" style="--delay: 260ms;">
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Province Spread</p>
+                            <h3>Where cases cluster</h3>
+                        </div>
+                    </div>
+                    <div class="chart-shell" id="provinceChart"></div>
+                </section>
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Age Bands</p>
+                            <h3>Current age mix</h3>
+                        </div>
+                    </div>
+                    <div class="chart-shell" id="ageChart"></div>
+                </section>
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Status Mix</p>
+                            <h3>Operational pressure</h3>
+                        </div>
+                    </div>
+                    <div class="chart-shell" id="statusChart"></div>
+                </section>
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Trendline</p>
+                            <h3>Update cadence</h3>
+                        </div>
+                    </div>
+                    <div class="chart-shell" id="trendChart"></div>
+                </section>
+            </section>
+
+            <section class="analysis-grid reveal-up" style="--delay: 300ms;">
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Province Routes</p>
+                            <h3>Official reporting links</h3>
+                        </div>
+                    </div>
+                    <div class="stack-list" id="provinceResourcesList">
+                        <div class="empty-state">Loading province resources...</div>
+                    </div>
+                </section>
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Protocol 01</p>
+                            <h3>Amplify the profile</h3>
+                        </div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-index">1</div>
+                        <div>
+                            <strong>Share official posts only</strong>
+                            <p>Use the case page, the listed authority, or MCSC materials instead of rumor threads.</p>
+                        </div>
+                    </div>
+                </section>
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Protocol 02</p>
+                            <h3>Preserve context</h3>
+                        </div>
+                    </div>
+                    <div class="protocol-card muted">
+                        <div class="protocol-index">2</div>
+                        <div>
+                            <strong>Capture time and location</strong>
+                            <p>When reporting, include timestamps, platforms, station names, routes, or nearby landmarks.</p>
+                        </div>
+                    </div>
+                </section>
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="eyebrow">Protocol 03</p>
+                            <h3>Move to evidence review</h3>
+                        </div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-index">3</div>
+                        <div>
+                            <strong>Use the Evidence Lab</strong>
+                            <p>Run the optional investigation backend only when you need public lead aggregation, scoring, and human review.</p>
+                        </div>
+                    </div>
+                </section>
             </section>
         </main>
     </div>
@@ -201,6 +354,7 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""
     ></script>
+    <script src="./assets/shared.js" defer></script>
     <script src="./assets/app.js" defer></script>
 </body>
 </html>

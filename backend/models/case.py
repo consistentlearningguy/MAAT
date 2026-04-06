@@ -1,199 +1,141 @@
-"""SQLAlchemy models for missing persons cases, photos, and sync logs."""
+﻿"""Core case, source, photo, resource, and geospatial models."""
 
-from datetime import datetime, timezone
+from __future__ import annotations
 
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Float,
-    DateTime,
-    Text,
-    ForeignKey,
-    Index,
-)
-from sqlalchemy.orm import relationship
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.database import Base
+from shared.utils.dates import utcnow
 
 
-def utcnow():
-    return datetime.now(timezone.utc)
+class Case(Base):
+    """Normalized missing child case."""
 
+    __tablename__ = "cases"
 
-class MissingCase(Base):
-    """A missing person case from MCSC."""
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_record_id: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    slug: Mapped[str] = mapped_column(String(255), index=True)
+    name: Mapped[str | None] = mapped_column(String(255), index=True)
+    aliases: Mapped[list[str]] = mapped_column(JSON, default=list)
+    age: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    gender: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    ethnicity: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(128), index=True)
+    province: Mapped[str | None] = mapped_column(String(128), index=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status: Mapped[str | None] = mapped_column(String(64), index=True)
+    case_status: Mapped[str | None] = mapped_column(String(64), index=True)
+    missing_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    official_summary_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    authority_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    authority_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    authority_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    authority_phone_alt: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    authority_case_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    mcsc_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mcsc_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    risk_flags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    source_feed: Mapped[str] = mapped_column(String(255), default="Missing Children Society of Canada ArcGIS")
+    source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    arcgis_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    arcgis_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    __tablename__ = "missing_cases"
-
-    # Primary key from ArcGIS objectid
-    objectid = Column(Integer, primary_key=True, index=True)
-    globalid = Column(String(38), unique=True, nullable=True)
-
-    # Person details
-    name = Column(String(100), nullable=True, index=True)
-    age = Column(Integer, nullable=True)
-    gender = Column(String(20), nullable=True)
-    ethnicity = Column(String(100), nullable=True)
-
-    # Location
-    city = Column(String(100), nullable=True, index=True)
-    province = Column(String(100), nullable=True, index=True)
-    latitude = Column(Float, nullable=True)
-    longitude = Column(Float, nullable=True)
-
-    # Case details
-    missing_since = Column(DateTime, nullable=True)
-    description = Column(Text, nullable=True)
-    status = Column(String(50), nullable=True, index=True)  # vulnerable, abudction, amberalert, etc.
-    case_status = Column(String(20), nullable=True, index=True)  # open, located, archived, expired
-
-    # Authority contact
-    authority_name = Column(String(200), nullable=True)
-    authority_email = Column(String(100), nullable=True)
-    authority_phone = Column(String(50), nullable=True)
-    authority_phone_alt = Column(String(50), nullable=True)
-    authority_link = Column(String(255), nullable=True)
-
-    # Photos
-    photo_url = Column(String(500), nullable=True)
-    thumb_url = Column(String(500), nullable=True)
-
-    # Sync tracking
-    first_synced_at = Column(DateTime, default=utcnow)
-    last_synced_at = Column(DateTime, default=utcnow, onupdate=utcnow)
-
-    # Timestamps from ArcGIS
-    arcgis_created_at = Column(DateTime, nullable=True)
-    arcgis_updated_at = Column(DateTime, nullable=True)
-
-    # Relationships
-    photos = relationship("CasePhoto", back_populates="case", cascade="all, delete-orphan")
-
-    __table_args__ = (
-        Index("ix_province_status", "province", "case_status"),
-        Index("ix_missing_since", "missing_since"),
-    )
-
-    def __repr__(self):
-        return f"<MissingCase(objectid={self.objectid}, name='{self.name}', province='{self.province}')>"
-
-    def to_dict(self):
-        """Convert to dictionary for API responses."""
-        return {
-            "objectid": self.objectid,
-            "globalid": self.globalid,
-            "name": self.name,
-            "age": self.age,
-            "gender": self.gender,
-            "ethnicity": self.ethnicity,
-            "city": self.city,
-            "province": self.province,
-            "latitude": self.latitude,
-            "longitude": self.longitude,
-            "missing_since": self.missing_since.isoformat() if self.missing_since else None,
-            "description": self.description,
-            "status": self.status,
-            "case_status": self.case_status,
-            "authority_name": self.authority_name,
-            "authority_email": self.authority_email,
-            "authority_phone": self.authority_phone,
-            "authority_phone_alt": self.authority_phone_alt,
-            "authority_link": self.authority_link,
-            "photo_url": self.photo_url,
-            "thumb_url": self.thumb_url,
-            "first_synced_at": self.first_synced_at.isoformat() if self.first_synced_at else None,
-            "last_synced_at": self.last_synced_at.isoformat() if self.last_synced_at else None,
-            "photos": [p.to_dict() for p in self.photos] if self.photos else [],
-        }
-
-    def to_geojson_feature(self):
-        """Convert to GeoJSON Feature for map rendering."""
-        return {
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [self.longitude, self.latitude],
-            }
-            if self.latitude and self.longitude
-            else None,
-            "properties": {
-                "objectid": self.objectid,
-                "name": self.name,
-                "age": self.age,
-                "city": self.city,
-                "province": self.province,
-                "missing_since": self.missing_since.isoformat() if self.missing_since else None,
-                "status": self.status,
-                "case_status": self.case_status,
-                "photo_url": self.photo_url,
-                "thumb_url": self.thumb_url,
-            },
-        }
+    photos: Mapped[list["CasePhoto"]] = relationship(back_populates="case", cascade="all, delete-orphan")
+    source_records: Mapped[list["SourceRecord"]] = relationship(back_populates="case", cascade="all, delete-orphan")
+    resource_links: Mapped[list["ResourceLink"]] = relationship(back_populates="case", cascade="all, delete-orphan")
+    geo_contexts: Mapped[list["GeoContext"]] = relationship(back_populates="case", cascade="all, delete-orphan")
+    alert_snapshots: Mapped[list["AlertSnapshot"]] = relationship(back_populates="case", cascade="all, delete-orphan")
 
 
 class CasePhoto(Base):
-    """Photo attachment for a missing person case."""
+    """Photo for a case."""
 
     __tablename__ = "case_photos"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    case_objectid = Column(Integer, ForeignKey("missing_cases.objectid"), nullable=False, index=True)
-    attachment_id = Column(Integer, nullable=False)
-    url = Column(String(500), nullable=True)
-    local_path = Column(String(500), nullable=True)
-    content_type = Column(String(100), nullable=True)
-    file_size = Column(Integer, nullable=True)
-    downloaded_at = Column(DateTime, nullable=True)
-
-    # Relationship
-    case = relationship("MissingCase", back_populates="photos")
-
-    def __repr__(self):
-        return f"<CasePhoto(id={self.id}, case={self.case_objectid}, attachment={self.attachment_id})>"
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "case_objectid": self.case_objectid,
-            "attachment_id": self.attachment_id,
-            "url": self.url,
-            "local_path": self.local_path,
-            "content_type": self.content_type,
-            "file_size": self.file_size,
-            "downloaded_at": self.downloaded_at.isoformat() if self.downloaded_at else None,
-        }
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("cases.id"), index=True)
+    url: Mapped[str] = mapped_column(String(1024))
+    thumb_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    caption: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    case: Mapped["Case"] = relationship(back_populates="photos")
 
 
-class SyncLog(Base):
-    """Log of each data synchronization run."""
+class SourceRecord(Base):
+    """Normalized source attribution record."""
 
-    __tablename__ = "sync_logs"
+    __tablename__ = "source_records"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    started_at = Column(DateTime, default=utcnow, nullable=False)
-    completed_at = Column(DateTime, nullable=True)
-    cases_added = Column(Integer, default=0)
-    cases_updated = Column(Integer, default=0)
-    cases_removed = Column(Integer, default=0)
-    photos_downloaded = Column(Integer, default=0)
-    total_cases = Column(Integer, default=0)
-    status = Column(String(20), default="running")  # running, completed, failed
-    error_message = Column(Text, nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("cases.id"), index=True)
+    source_name: Mapped[str] = mapped_column(String(255))
+    source_type: Mapped[str] = mapped_column(String(64))
+    source_url: Mapped[str] = mapped_column(String(1024))
+    query_used: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    official: Mapped[bool] = mapped_column(Boolean, default=True)
+    trust_weight: Mapped[float] = mapped_column(Float, default=1.0)
+    attribution_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    raw_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    case: Mapped["Case"] = relationship(back_populates="source_records")
 
-    def __repr__(self):
-        return f"<SyncLog(id={self.id}, status='{self.status}', added={self.cases_added})>"
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
-            "cases_added": self.cases_added,
-            "cases_updated": self.cases_updated,
-            "cases_removed": self.cases_removed,
-            "photos_downloaded": self.photos_downloaded,
-            "total_cases": self.total_cases,
-            "status": self.status,
-            "error_message": self.error_message,
-        }
+class ResourceLink(Base):
+    """Public resources and reporting routes linked to a case or province."""
+
+    __tablename__ = "resource_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    case_id: Mapped[int | None] = mapped_column(ForeignKey("cases.id"), nullable=True, index=True)
+    province: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    category: Mapped[str] = mapped_column(String(64))
+    label: Mapped[str] = mapped_column(String(255))
+    url: Mapped[str] = mapped_column(String(1024))
+    authority_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    official: Mapped[bool] = mapped_column(Boolean, default=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    case: Mapped["Case"] = relationship(back_populates="resource_links")
+
+
+class GeoContext(Base):
+    """Nearby public geospatial reference points."""
+
+    __tablename__ = "geo_contexts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("cases.id"), index=True)
+    context_type: Mapped[str] = mapped_column(String(64), index=True)
+    label: Mapped[str] = mapped_column(String(255))
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    distance_km: Mapped[float | None] = mapped_column(Float, nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    jurisdiction: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    case: Mapped["Case"] = relationship(back_populates="geo_contexts")
+
+
+class AlertSnapshot(Base):
+    """Historical snapshot of an alert state."""
+
+    __tablename__ = "alert_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("cases.id"), index=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    status: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    case: Mapped["Case"] = relationship(back_populates="alert_snapshots")
+

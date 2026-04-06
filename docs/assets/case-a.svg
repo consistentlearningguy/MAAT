@@ -1,0 +1,9 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 640" role="img" aria-label="Sample portrait A">
+  <rect width="480" height="640" fill="#efe3cd"/>
+  <circle cx="240" cy="218" r="96" fill="#1d3c34"/>
+  <path d="M120 560c0-88 53-150 120-150s120 62 120 150" fill="#c55a2c"/>
+  <circle cx="205" cy="208" r="10" fill="#efe3cd"/>
+  <circle cx="275" cy="208" r="10" fill="#efe3cd"/>
+  <path d="M196 256c18 18 70 18 88 0" stroke="#efe3cd" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <text x="36" y="60" fill="#1d3c34" font-size="28" font-family="IBM Plex Sans, sans-serif">Sample Portrait</text>
+</svg>

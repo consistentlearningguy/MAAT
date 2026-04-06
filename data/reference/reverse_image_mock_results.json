@@ -1,0 +1,30 @@
+﻿[
+  {
+    "image_url": "./assets/case-a.svg",
+    "source_name": "Mock Public Image Index",
+    "source_url": "https://public.example.org/case-a-match",
+    "title": "Public image match from open web bulletin",
+    "summary": "Matched the case photo to a public community bulletin mirror with timestamped sighting context.",
+    "published_at": "2026-03-18T19:00:00Z",
+    "location_text": "Toronto, Ontario",
+    "source_trust": 0.55,
+    "rationale": [
+      "Provider returned a visually similar public image result.",
+      "Source URL is attributable and reviewable by an analyst."
+    ]
+  },
+  {
+    "image_url": "./assets/case-b.svg",
+    "source_name": "Mock Public Forum Mirror",
+    "source_url": "https://public.example.org/case-b-match",
+    "title": "Public post reusing case photo",
+    "summary": "Open post includes the same image and a recent public location reference for analyst review.",
+    "published_at": "2026-03-17T22:30:00Z",
+    "location_text": "Surrey, British Columbia",
+    "source_trust": 0.45,
+    "rationale": [
+      "Result came from a public post that can be independently reviewed.",
+      "Source metadata is captured for lead triage."
+    ]
+  }
+]

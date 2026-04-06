@@ -1,569 +1,748 @@
-const API_BASE =
-    "https://services.arcgis.com/Sv9ZXFjH5h1fYAaI/arcgis/rest/services/Missing_Children_Cases_View_Master/FeatureServer/0";
+(function () {
+  if (!window.OsintMissingPersons || document.body.dataset.page !== "profiles") {
+    return;
+  }
 
-const QUERY_FIELDS = [
-    "objectid",
-    "globalid",
-    "status",
-    "casestatus",
-    "name",
-    "age",
-    "gender",
-    "ethnicity",
-    "city",
-    "province",
-    "missing",
-    "description",
-    "authname",
-    "authemail",
-    "authlink",
-    "authphone",
-    "authphonetwo",
-    "thumb_url",
-    "mcscemail",
-    "mcscphone",
-    "CreationDate",
-    "EditDate",
-];
+  const App = window.OsintMissingPersons;
 
-const PROVINCE_LABELS = {
-    Alberta: "Alberta",
-    BritishColumbia: "British Columbia",
-    Manitoba: "Manitoba",
-    NewBrunswick: "New Brunswick",
-    NewfoundlandandLabrador: "Newfoundland and Labrador",
-    NT: "Northwest Territories",
-    NovaScotia: "Nova Scotia",
-    NU: "Nunavut",
-    Ontario: "Ontario",
-    PrinceEdwardIsland: "Prince Edward Island",
-    Quebec: "Quebec",
-    Saskatchewan: "Saskatchewan",
-    YT: "Yukon",
-};
-
-const STATUS_LABELS = {
-    missing: "Missing",
-    vulnerable: "Vulnerable",
-    abudction: "Abduction",
-    amberalert: "Amber Alert",
-    childsearchalert: "Child Search Alert",
-};
-
-const state = {
+  const state = {
+    datasetMeta: null,
+    referenceLayers: null,
     cases: [],
     filteredCases: [],
     selectedCaseId: null,
-    map: null,
-    markersLayer: null,
-    attachmentCache: new Map(),
-};
+    viewMode: "list",
+    mapContext: null,
+  };
 
-const elements = {
-    feedStatus: document.getElementById("feedStatus"),
-    statTotal: document.getElementById("statTotal"),
-    statHighRisk: document.getElementById("statHighRisk"),
-    statRecent: document.getElementById("statRecent"),
-    statUpdated: document.getElementById("statUpdated"),
-    resultsCount: document.getElementById("resultsCount"),
-    provinceStrip: document.getElementById("provinceStrip"),
+  const elements = {
+    dataModeBadge: document.getElementById("dataModeBadge"),
+    feedTimestamp: document.getElementById("feedTimestamp"),
+    feedSafetyNotice: document.getElementById("feedSafetyNotice"),
+    metricsGrid: document.getElementById("metricsGrid"),
+    signalRibbon: document.getElementById("signalRibbon"),
+    signalTicker: document.getElementById("signalTicker"),
+    signalQueue: document.getElementById("signalQueue"),
     caseList: document.getElementById("caseList"),
+    detailPanel: document.getElementById("detailPanel"),
     provinceSelect: document.getElementById("provinceSelect"),
+    citySelect: document.getElementById("citySelect"),
     statusSelect: document.getElementById("statusSelect"),
     sortSelect: document.getElementById("sortSelect"),
     searchInput: document.getElementById("searchInput"),
+    minAgeInput: document.getElementById("minAgeInput"),
+    maxAgeInput: document.getElementById("maxAgeInput"),
+    resultsCount: document.getElementById("resultsCount"),
+    provinceStrip: document.getElementById("provinceStrip"),
+    recentUpdatesList: document.getElementById("recentUpdatesList"),
+    provinceResourcesList: document.getElementById("provinceResourcesList"),
     fitMapButton: document.getElementById("fitMapButton"),
-    detailEmpty: document.getElementById("detailEmpty"),
-    detailPanel: document.getElementById("detailPanel"),
-    detailStatus: document.getElementById("detailStatus"),
-    detailMeta: document.getElementById("detailMeta"),
-    detailName: document.getElementById("detailName"),
-    detailLocation: document.getElementById("detailLocation"),
-    detailSummary: document.getElementById("detailSummary"),
-    detailGallery: document.getElementById("detailGallery"),
-    detailGrid: document.getElementById("detailGrid"),
-    detailDescription: document.getElementById("detailDescription"),
-    authorityLink: document.getElementById("authorityLink"),
-    mcscEmailLink: document.getElementById("mcscEmailLink"),
-    authorityPhoneLink: document.getElementById("authorityPhoneLink"),
-};
+    resetFiltersButton: document.getElementById("resetFiltersButton"),
+    liveModeButton: document.getElementById("liveModeButton"),
+    evidenceNavLink: document.getElementById("evidenceNavLink"),
+    openEvidencePage: document.getElementById("openEvidencePage"),
+  };
 
-document.addEventListener("DOMContentLoaded", () => {
-    initMap();
-    bindControls();
-    loadCases();
-});
+  let routeState = App.readRouteState();
 
-function initMap() {
-    state.map = L.map("map", {
-        center: [56.1304, -106.3468],
-        zoom: 4,
-        scrollWheelZoom: true,
-    });
-
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-        attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CARTO',
-        subdomains: "abcd",
-        maxZoom: 19,
-    }).addTo(state.map);
-
-    state.markersLayer = L.layerGroup().addTo(state.map);
-}
-
-function bindControls() {
-    elements.searchInput.addEventListener("input", applyFilters);
-    elements.provinceSelect.addEventListener("change", applyFilters);
-    elements.statusSelect.addEventListener("change", applyFilters);
-    elements.sortSelect.addEventListener("change", applyFilters);
-    elements.fitMapButton.addEventListener("click", fitMapToFilteredCases);
-}
-
-async function loadCases() {
-    try {
-        setFeedStatus("Loading live feed", false);
-
-        const params = new URLSearchParams({
-            where: "casestatus='open'",
-            outFields: QUERY_FIELDS.join(","),
-            returnGeometry: "true",
-            orderByFields: "missing DESC",
-            resultRecordCount: "1000",
-            f: "json",
-        });
-
-        const response = await fetch(`${API_BASE}/query?${params.toString()}`);
-        if (!response.ok) {
-            throw new Error(`Feed returned ${response.status}`);
-        }
-
-        const payload = await response.json();
-        state.cases = (payload.features || [])
-            .map(normalizeCase)
-            .filter((item) => item.caseStatus === "open");
-
-        populateProvinceOptions(state.cases);
-        renderStats(state.cases);
-        applyFilters();
-        setFeedStatus("Live feed connected", true);
-    } catch (error) {
-        console.error(error);
-        elements.caseList.innerHTML =
-            '<div class="empty-state">Unable to load the live public data feed right now.</div>';
-        setFeedStatus("Feed unavailable", false);
-    }
-}
-
-function normalizeCase(feature) {
-    const attrs = feature.attributes || {};
-    const geometry = feature.geometry || {};
-    const missingDate = attrs.missing ? new Date(attrs.missing) : null;
-    const updatedDate = attrs.EditDate ? new Date(attrs.EditDate) : null;
-
+  function currentFilters() {
     return {
-        id: attrs.objectid,
-        name: attrs.name || "Name unavailable",
-        age: isFiniteNumber(attrs.age) ? attrs.age : null,
-        gender: attrs.gender || "",
-        ethnicity: attrs.ethnicity || "",
-        city: attrs.city || "",
-        province: attrs.province || "",
-        provinceLabel: PROVINCE_LABELS[attrs.province] || attrs.province || "Unknown province",
-        status: attrs.status || "missing",
-        statusLabel: STATUS_LABELS[attrs.status] || "Missing",
-        caseStatus: attrs.casestatus || "",
-        descriptionHtml: attrs.description || "",
-        authorityName: attrs.authname || "",
-        authorityEmail: attrs.authemail || "",
-        authorityLink: attrs.authlink || "",
-        authorityPhone: attrs.authphone || "",
-        authorityPhoneAlt: attrs.authphonetwo || "",
-        mcscEmail: attrs.mcscemail || "tips@mcsc.ca",
-        mcscPhone: attrs.mcscphone || "",
-        thumbUrl: attrs.thumb_url || "",
-        missingDate,
-        updatedDate,
-        latitude: geometry.y ?? null,
-        longitude: geometry.x ?? null,
+      search: elements.searchInput.value.trim(),
+      province: elements.provinceSelect.value,
+      city: elements.citySelect.value,
+      minAge: elements.minAgeInput.value,
+      maxAge: elements.maxAgeInput.value,
+      status: elements.statusSelect.value,
+      sort: elements.sortSelect.value,
+      view: state.viewMode,
+      selectedCaseId: state.selectedCaseId,
+      live: routeState.live,
+      apiBase: routeState.apiBase,
     };
-}
+  }
 
-function populateProvinceOptions(cases) {
-    const provinces = [...new Set(cases.map((item) => item.province).filter(Boolean))]
-        .sort((a, b) => (PROVINCE_LABELS[a] || a).localeCompare(PROVINCE_LABELS[b] || b));
-
-    elements.provinceSelect.innerHTML = '<option value="">All provinces</option>';
-    for (const province of provinces) {
-        const option = document.createElement("option");
-        option.value = province;
-        option.textContent = PROVINCE_LABELS[province] || province;
-        elements.provinceSelect.appendChild(option);
-    }
-}
-
-function renderStats(cases) {
-    const now = Date.now();
-    const recentThreshold = now - 30 * 24 * 60 * 60 * 1000;
-    const highRiskStatuses = new Set(["vulnerable", "amberalert", "abudction", "childsearchalert"]);
-
-    const total = cases.length;
-    const highRisk = cases.filter((item) => highRiskStatuses.has(item.status)).length;
-    const recent = cases.filter((item) => item.missingDate && item.missingDate.getTime() >= recentThreshold).length;
-    const latestUpdate = cases
-        .map((item) => item.updatedDate)
-        .filter(Boolean)
-        .sort((a, b) => b - a)[0];
-
-    elements.statTotal.textContent = String(total);
-    elements.statHighRisk.textContent = String(highRisk);
-    elements.statRecent.textContent = String(recent);
-    elements.statUpdated.textContent = latestUpdate ? formatDate(latestUpdate) : "Unavailable";
-
-    const byProvince = countBy(cases, (item) => item.provinceLabel);
-    const topProvinces = [...byProvince.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6);
-
-    elements.provinceStrip.innerHTML = "";
-    for (const [province, count] of topProvinces) {
-        const chip = document.createElement("span");
-        chip.className = "province-chip";
-        chip.textContent = `${province} ${count}`;
-        elements.provinceStrip.appendChild(chip);
-    }
-}
-
-function applyFilters() {
-    const query = elements.searchInput.value.trim().toLowerCase();
-    const province = elements.provinceSelect.value;
-    const status = elements.statusSelect.value;
-    const sortMode = elements.sortSelect.value;
-
-    let results = state.cases.filter((item) => {
-        const matchesQuery =
-            !query ||
-            [item.name, item.city, item.provinceLabel, item.statusLabel]
-                .join(" ")
-                .toLowerCase()
-                .includes(query);
-        const matchesProvince = !province || item.province === province;
-        const matchesStatus = !status || item.status === status;
-        return matchesQuery && matchesProvince && matchesStatus;
+  function populateSelect(select, values, placeholder) {
+    const current = select.value;
+    select.innerHTML = `<option value="">${placeholder}</option>`;
+    values.forEach((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = value;
+      if (value === current) option.selected = true;
+      select.appendChild(option);
     });
+  }
 
-    results = sortCases(results, sortMode);
-    state.filteredCases = results;
-
-    renderCaseList(results);
-    renderMarkers(results);
-    updateResultsCount(results.length);
-
-    if (!results.some((item) => item.id === state.selectedCaseId)) {
-        if (results[0]) {
-            selectCase(results[0].id);
-        } else {
-            clearDetailPanel();
-        }
-    } else {
-        renderActiveCard();
-    }
-}
-
-function sortCases(cases, mode) {
-    const sorted = [...cases];
-    sorted.sort((a, b) => {
-        switch (mode) {
-            case "missing-asc":
-                return compareDates(a.missingDate, b.missingDate);
-            case "age-asc":
-                return compareNumbers(a.age, b.age);
-            case "age-desc":
-                return compareNumbers(b.age, a.age);
-            case "name-asc":
-                return a.name.localeCompare(b.name);
-            case "missing-desc":
-            default:
-                return compareDates(b.missingDate, a.missingDate);
-        }
+  function syncControlsFromRoute() {
+    elements.searchInput.value = routeState.search || "";
+    elements.minAgeInput.value = routeState.minAge || "";
+    elements.maxAgeInput.value = routeState.maxAge || "";
+    elements.statusSelect.value = routeState.status || "";
+    elements.sortSelect.value = routeState.sort || "recency";
+    state.viewMode = routeState.view || "list";
+    document.querySelectorAll(".toggle-button").forEach((button) => {
+      button.classList.toggle("active", button.dataset.view === state.viewMode);
     });
-    return sorted;
-}
+  }
 
-function renderCaseList(cases) {
-    if (!cases.length) {
-        elements.caseList.innerHTML =
-            '<div class="empty-state">No active cases match these filters right now.</div>';
-        return;
+  function updateFilterOptions() {
+    populateSelect(
+      elements.provinceSelect,
+      App.uniqueValues(state.cases, (item) => item.province),
+      "All provinces"
+    );
+    elements.provinceSelect.value = routeState.province || "";
+    const citySource = routeState.province
+      ? state.cases.filter((item) => item.province === routeState.province)
+      : state.cases;
+    populateSelect(
+      elements.citySelect,
+      App.uniqueValues(citySource, (item) => item.city),
+      "All cities"
+    );
+    elements.citySelect.value = routeState.city || "";
+  }
+
+  function renderProvinceStrip(records) {
+    const counts = {};
+    records.forEach((record) => {
+      counts[record.province] = (counts[record.province] || 0) + 1;
+    });
+    elements.provinceStrip.innerHTML = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(
+        ([province, count]) =>
+          `<span class="province-chip">${App.escapeHtml(province)} ${count}</span>`
+      )
+      .join("");
+  }
+
+  function renderMetrics(container, summary) {
+    container.innerHTML = [
+      {
+        label: "Tracked cases",
+        value: summary.total,
+        note: "Visible in the current query scope.",
+        tone: "neutral",
+      },
+      {
+        label: "Priority statuses",
+        value: summary.highRisk,
+        note: "Amber, vulnerable, and child-search escalations.",
+        tone: "alert",
+      },
+      {
+        label: "Updated in 30 days",
+        value: summary.recent,
+        note: "Recently active records worth reviewing first.",
+        tone: "live",
+      },
+      {
+        label: "Latest sync",
+        value: summary.latestUpdate ? App.formatDate(summary.latestUpdate) : "Unavailable",
+        note: "Most recent public update timestamp in scope.",
+        tone: "hot",
+      },
+    ]
+      .map(
+        (metric) => `
+        <article class="metric-card metric-${metric.tone}">
+          <span class="metric-kicker">${metric.label}</span>
+          <strong class="metric-value">${metric.value}</strong>
+          <p class="metric-note">${metric.note}</p>
+        </article>
+      `
+      )
+      .join("");
+  }
+
+  function renderSignalBands(records) {
+    const items = App.buildCaseSignalItems(records, state.datasetMeta);
+    App.renderMarquee(elements.signalRibbon, items, "signal-ribbon-track");
+    App.renderMarquee(elements.signalTicker, items, "signal-marquee-track");
+  }
+
+  function renderSignalQueue(container, records) {
+    const items = [...records]
+      .sort(
+        (a, b) =>
+          (b.riskRank ?? 0) - (a.riskRank ?? 0) ||
+          new Date(b.updatedAt || b.missingSince || 0) -
+            new Date(a.updatedAt || a.missingSince || 0)
+      )
+      .slice(0, 5);
+
+    if (!items.length) {
+      container.innerHTML =
+        '<div class="empty-state">No cases match the current filters, so no signal queue is visible.</div>';
+      return;
     }
 
-    elements.caseList.innerHTML = "";
-    const fragment = document.createDocumentFragment();
-
-    for (const item of cases) {
-        const card = document.createElement("article");
-        card.className = "case-card";
-        card.dataset.caseId = String(item.id);
-        card.innerHTML = `
-            <div class="case-card-media">
-                ${item.thumbUrl
-                    ? `<img src="${item.thumbUrl}" alt="${escapeHtml(item.name)}" loading="lazy">`
-                    : ""}
-            </div>
+    container.innerHTML = items
+      .map(
+        (record) => `
+        <div class="signal-item priority-${record.riskRank ?? 1}">
+          <div class="signal-item-head">
             <div>
-                <div class="case-card-title">
-                    <div>
-                        <h4>${escapeHtml(item.name)}</h4>
-                        <p>${escapeHtml(item.city || "Location unavailable")}, ${escapeHtml(item.provinceLabel)}</p>
-                    </div>
-                    <span class="status-tag status-${item.status}">${escapeHtml(item.statusLabel)}</span>
-                </div>
-                <p>Age ${item.age ?? "Unknown"}${item.gender ? ` | ${capitalize(item.gender)}` : ""}</p>
-                <p>Missing since ${item.missingDate ? formatDate(item.missingDate) : "Unknown"}</p>
+              <strong>${App.escapeHtml(record.name)}</strong>
+              <p>${App.escapeHtml(record.city || "Unknown city")}, ${App.escapeHtml(
+                record.province
+              )}</p>
             </div>
-        `;
-        card.addEventListener("click", () => selectCase(item.id, true));
-        fragment.appendChild(card);
-    }
+            <span class="signal-priority">P${record.riskRank ?? 1}</span>
+          </div>
+          <p>${App.escapeHtml(record.inferenceSummary)}</p>
+          <div class="source-row">
+            <span class="status-tag status-${record.status}">${App.escapeHtml(
+              record.statusLabel
+            )}</span>
+            <span class="flag-chip">Elapsed ${App.formatElapsed(record.elapsedDays)}</span>
+            <span class="geo-chip">${App.escapeHtml(
+              record.geoContext && record.geoContext[0]
+                ? record.geoContext[0].label
+                : "No nearby public layer"
+            )}</span>
+            <span class="source-badge">${record.sources.length} source${
+              record.sources.length === 1 ? "" : "s"
+            }</span>
+          </div>
+        </div>
+      `
+      )
+      .join("");
+  }
 
-    elements.caseList.appendChild(fragment);
-    renderActiveCard();
-}
+  function renderRecentUpdates(container, records) {
+    const items = [...records]
+      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
+      .slice(0, 5);
+    container.innerHTML = items
+      .map(
+        (record) => `
+        <div class="update-item">
+          <div>
+            <strong>${App.escapeHtml(record.name)}</strong>
+            <p>${App.escapeHtml(record.city || "Unknown city")}, ${App.escapeHtml(
+              record.province
+            )}</p>
+          </div>
+          <div class="update-meta">
+            <span class="status-tag status-${record.status}">${App.escapeHtml(
+              record.statusLabel
+            )}</span>
+            <span class="source-badge">${App.formatDate(
+              record.updatedAt || record.missingSince
+            )}</span>
+          </div>
+        </div>
+      `
+      )
+      .join("");
+  }
 
-function renderMarkers(cases) {
-    state.markersLayer.clearLayers();
-
-    const bounds = [];
-    for (const item of cases) {
-        if (!isFiniteNumber(item.latitude) || !isFiniteNumber(item.longitude)) {
-            continue;
-        }
-
-        const marker = L.marker([item.latitude, item.longitude], {
-            icon: L.divIcon({
-                className: "",
-                html: `<span class="marker-dot marker-${item.status}"></span>`,
-                iconSize: [18, 18],
-                iconAnchor: [9, 9],
-            }),
-            title: item.name,
-        });
-
-        marker.bindPopup(`
-            <strong>${escapeHtml(item.name)}</strong><br>
-            ${escapeHtml(item.city || "Unknown city")}, ${escapeHtml(item.provinceLabel)}<br>
-            ${escapeHtml(item.statusLabel)}<br>
-            Missing since ${item.missingDate ? formatDate(item.missingDate) : "Unknown"}
-        `);
-
-        marker.on("click", () => selectCase(item.id, true));
-        marker.addTo(state.markersLayer);
-        bounds.push([item.latitude, item.longitude]);
-    }
-
-    if (bounds.length) {
-        state.map.fitBounds(L.latLngBounds(bounds).pad(0.2), { maxZoom: 6 });
-    }
-}
-
-function fitMapToFilteredCases() {
-    const points = state.filteredCases
-        .filter((item) => isFiniteNumber(item.latitude) && isFiniteNumber(item.longitude))
-        .map((item) => [item.latitude, item.longitude]);
-
-    if (!points.length) {
-        return;
-    }
-
-    state.map.fitBounds(L.latLngBounds(points).pad(0.2), { maxZoom: 6 });
-}
-
-async function selectCase(caseId, flyToMarker = false) {
-    const item = state.filteredCases.find((entry) => entry.id === caseId) || state.cases.find((entry) => entry.id === caseId);
-    if (!item) {
-        return;
-    }
-
-    state.selectedCaseId = caseId;
-    renderActiveCard();
-
-    if (flyToMarker && isFiniteNumber(item.latitude) && isFiniteNumber(item.longitude)) {
-        state.map.flyTo([item.latitude, item.longitude], 8, { duration: 0.8 });
-    }
-
-    elements.detailEmpty.classList.add("hidden");
-    elements.detailPanel.classList.remove("hidden");
-    elements.detailStatus.className = `status-tag status-${item.status}`;
-    elements.detailStatus.textContent = item.statusLabel;
-    elements.detailMeta.textContent = item.updatedDate ? `Updated ${formatDate(item.updatedDate)}` : "Live public record";
-    elements.detailName.textContent = item.name;
-    elements.detailLocation.textContent = `${item.city || "Location unavailable"}, ${item.provinceLabel}`;
-    elements.detailSummary.textContent = item.missingDate
-        ? `Missing since ${formatDate(item.missingDate)}`
-        : "Missing date unavailable";
-    elements.detailDescription.innerHTML = item.descriptionHtml || "<p>No additional public description was provided.</p>";
-
-    renderDetailGrid(item);
-    renderActionLinks(item);
-    await renderGallery(item);
-}
-
-function renderDetailGrid(item) {
-    const rows = [
-        ["Age", item.age ?? "Unknown"],
-        ["Gender", item.gender ? capitalize(item.gender) : "Unknown"],
-        ["Ethnicity", item.ethnicity && item.ethnicity !== "notlisted" ? capitalize(item.ethnicity) : "Not listed"],
-        ["Authority", item.authorityName || "Not listed"],
-        ["Authority Phone", item.authorityPhone || item.authorityPhoneAlt || "Not listed"],
-        ["MCSC Tips", item.mcscPhone || item.mcscEmail || "Not listed"],
-    ];
-
-    elements.detailGrid.innerHTML = rows
-        .map(
-            ([label, value]) => `
-                <div>
-                    <dt>${escapeHtml(label)}</dt>
-                    <dd>${escapeHtml(String(value))}</dd>
-                </div>
-            `
-        )
-        .join("");
-}
-
-async function renderGallery(item) {
-    elements.detailGallery.innerHTML = item.thumbUrl
-        ? `<img src="${item.thumbUrl}" alt="${escapeHtml(item.name)}" loading="lazy">`
-        : "";
-
-    const attachments = await fetchAttachments(item.id);
-    if (!attachments.length) {
-        return;
-    }
-
-    elements.detailGallery.innerHTML = attachments
-        .slice(0, 6)
-        .map((attachment) => {
-            const url = `${API_BASE}/${item.id}/attachments/${attachment.id}`;
-            return `<img src="${url}" alt="${escapeHtml(item.name)}" loading="lazy">`;
-        })
-        .join("");
-}
-
-async function fetchAttachments(caseId) {
-    if (state.attachmentCache.has(caseId)) {
-        return state.attachmentCache.get(caseId);
-    }
-
-    try {
-        const response = await fetch(`${API_BASE}/${caseId}/attachments?f=json`);
-        if (!response.ok) {
-            throw new Error(`Attachment request returned ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const attachments = payload.attachmentInfos || [];
-        state.attachmentCache.set(caseId, attachments);
-        return attachments;
-    } catch (error) {
-        console.warn("Attachment fetch failed", error);
-        state.attachmentCache.set(caseId, []);
-        return [];
-    }
-}
-
-function renderActionLinks(item) {
-    if (item.authorityLink) {
-        elements.authorityLink.href = item.authorityLink;
-        elements.authorityLink.style.display = "inline-flex";
-    } else {
-        elements.authorityLink.style.display = "none";
-    }
-
-    const email = item.mcscEmail || item.authorityEmail;
-    if (email) {
-        elements.mcscEmailLink.href = `mailto:${email}`;
-        elements.mcscEmailLink.textContent = email === item.mcscEmail ? "Email MCSC tips" : "Email listed authority";
-        elements.mcscEmailLink.style.display = "inline-flex";
-    } else {
-        elements.mcscEmailLink.style.display = "none";
-    }
-
-    const phone = item.authorityPhone || item.authorityPhoneAlt || item.mcscPhone;
-    if (phone) {
-        elements.authorityPhoneLink.href = `tel:${phone.replace(/\s+/g, "")}`;
-        elements.authorityPhoneLink.textContent = `Call ${phone.trim()}`;
-        elements.authorityPhoneLink.style.display = "inline-flex";
-    } else {
-        elements.authorityPhoneLink.style.display = "none";
-    }
-}
-
-function clearDetailPanel() {
-    state.selectedCaseId = null;
-    elements.detailPanel.classList.add("hidden");
-    elements.detailEmpty.classList.remove("hidden");
-    renderActiveCard();
-}
-
-function renderActiveCard() {
-    document.querySelectorAll(".case-card").forEach((card) => {
-        card.classList.toggle("active", Number(card.dataset.caseId) === state.selectedCaseId);
+  function renderProvinceResources(container, records) {
+    const byProvince = new Map();
+    records.forEach((record) => {
+      if (!byProvince.has(record.province)) {
+        byProvince.set(record.province, record.resources || []);
+      }
     });
-}
 
-function updateResultsCount(count) {
-    elements.resultsCount.textContent = `${count} result${count === 1 ? "" : "s"}`;
-}
+    container.innerHTML = [...byProvince.entries()]
+      .map(
+        ([province, resources]) => `
+        <div class="resource-item">
+          <div>
+            <strong>${App.escapeHtml(province)}</strong>
+            <p>${resources
+              .map(
+                (item) =>
+                  `<a href="${item.url}" target="_blank" rel="noopener">${App.escapeHtml(
+                    item.label
+                  )}</a>`
+              )
+              .join(" • ")}</p>
+          </div>
+          <span class="source-badge">${resources.length} route${
+            resources.length === 1 ? "" : "s"
+          }</span>
+        </div>
+      `
+      )
+      .join("");
+  }
 
-function setFeedStatus(text, healthy) {
-    elements.feedStatus.textContent = text;
-    elements.feedStatus.style.color = healthy ? "var(--fresh)" : "var(--warning)";
-}
+  function buildChartRows(entries) {
+    const max = Math.max(...entries.map((entry) => entry.value), 1);
+    return entries
+      .map(
+        (entry) => `
+        <div class="chart-row">
+          <div class="detail-section-head"><strong>${entry.label}</strong><span>${entry.value}</span></div>
+          <div class="chart-bar"><span style="width:${(entry.value / max) * 100}%"></span></div>
+        </div>
+      `
+      )
+      .join("");
+  }
 
-function countBy(items, getKey) {
-    const counts = new Map();
-    for (const item of items) {
-        const key = getKey(item);
-        counts.set(key, (counts.get(key) || 0) + 1);
+  function renderCharts(cases) {
+    const provinceCounts = {};
+    const ageCounts = { "0-5": 0, "6-10": 0, "11-15": 0, "16-18": 0, Unknown: 0 };
+    const statusCounts = {};
+    const trendCounts = {};
+
+    cases.forEach((record) => {
+      provinceCounts[record.province] = (provinceCounts[record.province] || 0) + 1;
+      statusCounts[record.statusLabel] = (statusCounts[record.statusLabel] || 0) + 1;
+      if (record.age === null || record.age === undefined) ageCounts.Unknown += 1;
+      else if (record.age <= 5) ageCounts["0-5"] += 1;
+      else if (record.age <= 10) ageCounts["6-10"] += 1;
+      else if (record.age <= 15) ageCounts["11-15"] += 1;
+      else ageCounts["16-18"] += 1;
+      const trendKey = (record.updatedAt || record.missingSince || "").slice(0, 10);
+      trendCounts[trendKey] = (trendCounts[trendKey] || 0) + 1;
+    });
+
+    document.getElementById("provinceChart").innerHTML = buildChartRows(
+      Object.entries(provinceCounts).map(([label, value]) => ({ label, value }))
+    );
+    document.getElementById("ageChart").innerHTML = buildChartRows(
+      Object.entries(ageCounts).map(([label, value]) => ({ label, value }))
+    );
+    document.getElementById("statusChart").innerHTML = buildChartRows(
+      Object.entries(statusCounts).map(([label, value]) => ({ label, value }))
+    );
+
+    const trendEntries = Object.entries(trendCounts).sort((a, b) => a[0].localeCompare(b[0]));
+    const max = Math.max(...trendEntries.map((entry) => entry[1]), 1);
+    document.getElementById("trendChart").innerHTML = `
+      <div class="sparkline">
+        ${trendEntries
+          .map(
+            ([label, value]) =>
+              `<div title="${App.formatDate(label)}: ${value}" class="sparkline-bar" style="height:${Math.max(
+                16,
+                (value / max) * 140
+              )}px"></div>`
+          )
+          .join("")}
+      </div>
+    `;
+  }
+
+  function renderCaseList(container, records, selectedCaseId, viewMode, onSelect) {
+    container.className = `case-list ${viewMode}-view`;
+    if (!records.length) {
+      container.innerHTML =
+        '<div class="empty-state">No active profiles match the current filters.</div>';
+      return;
     }
-    return counts;
-}
 
-function compareDates(a, b) {
-    const left = a instanceof Date ? a.getTime() : -Infinity;
-    const right = b instanceof Date ? b.getTime() : -Infinity;
-    return left - right;
-}
+    container.innerHTML = records
+      .map(
+        (record) => `
+        <article class="case-card ${record.id === selectedCaseId ? "active" : ""}" data-case-id="${record.id}">
+          <div class="case-card-media">
+            <img src="${
+              record.photos && record.photos[0] && record.photos[0].thumb_url
+                ? record.photos[0].thumb_url
+                : "./assets/case-a.svg"
+            }" alt="${App.escapeHtml(record.name)}" loading="lazy">
+            <div class="case-card-overlay">
+              <span class="case-card-index">#${record.id}</span>
+              <span class="case-card-priority priority-${record.riskRank ?? 1}">P${record.riskRank ?? 1}</span>
+            </div>
+          </div>
+          <div class="case-card-copy">
+            <div class="case-card-top">
+              <div>
+                <p class="case-card-label">${App.escapeHtml(record.slug)}</p>
+                <h4>${App.escapeHtml(record.name)}</h4>
+                <p>${App.escapeHtml(record.city || "Unknown city")}, ${App.escapeHtml(
+                  record.province
+                )}</p>
+              </div>
+              <span class="status-tag status-${record.status}">${App.escapeHtml(
+                record.statusLabel
+              )}</span>
+            </div>
+            <p class="case-card-meta">Age ${record.age ?? "Unknown"} • Missing ${App.formatDate(
+              record.missingSince
+            )}</p>
+            <p class="case-card-context">${App.escapeHtml(
+              record.geoContext && record.geoContext[0]
+                ? record.geoContext[0].label
+                : "No nearby public context layer"
+            )}</p>
+            <div class="source-row">
+              ${
+                (record.riskFlags || [])
+                  .slice(0, 2)
+                  .map((flag) => `<span class="flag-chip">${App.escapeHtml(flag)}</span>`)
+                  .join("") || '<span class="flag-chip">No derived flags</span>'
+              }
+              <span class="source-badge">${App.escapeHtml(
+                record.sources[0] && record.sources[0].label
+                  ? record.sources[0].label
+                  : "Official source"
+              )}</span>
+              <span class="source-badge">Elapsed ${App.formatElapsed(
+                record.elapsedDays
+              )}</span>
+            </div>
+          </div>
+        </article>
+      `
+      )
+      .join("");
 
-function compareNumbers(a, b) {
-    const left = Number.isFinite(a) ? a : Infinity;
-    const right = Number.isFinite(b) ? b : Infinity;
-    return left - right;
-}
+    container.querySelectorAll(".case-card").forEach((card) => {
+      card.addEventListener("click", () => onSelect(Number(card.dataset.caseId), true));
+    });
+  }
 
-function formatDate(date) {
-    return new Intl.DateTimeFormat("en-CA", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-    }).format(date);
-}
-
-function escapeHtml(value) {
-    return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-}
-
-function capitalize(value) {
-    if (!value) {
-        return "";
+  function renderDetail(container, record) {
+    if (!record) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <p class="eyebrow">Select a case</p>
+          <h3>Open a case file to inspect official facts, public context, reporting routes, and source trails.</h3>
+        </div>
+      `;
+      return;
     }
-    return value.charAt(0).toUpperCase() + value.slice(1);
-}
 
-function isFiniteNumber(value) {
-    return typeof value === "number" && Number.isFinite(value);
-}
+    container.innerHTML = `
+      <div class="detail-stack">
+        <div class="detail-top">
+          <div>
+            <p class="eyebrow">Selected Case</p>
+            <h3>${App.escapeHtml(record.name)}</h3>
+            <div class="case-label-row">
+              <span class="status-tag status-${record.status}">${App.escapeHtml(
+                record.statusLabel
+              )}</span>
+              <span class="source-badge">Case ${record.id}</span>
+              <span class="source-badge">${App.escapeHtml(record.slug)}</span>
+            </div>
+          </div>
+          <button class="primary-button" id="printCaseButton" type="button">Print packet</button>
+        </div>
+
+        <div class="detail-photo-grid">
+          ${
+            (record.photos || [])
+              .map(
+                (photo) =>
+                  `<img src="${photo.url}" alt="${App.escapeHtml(record.name)}" loading="lazy">`
+              )
+              .join("") || '<div class="empty-state">No photo provided</div>'
+          }
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-head"><strong>Official facts</strong><span>Primary record</span></div>
+          <div class="detail-grid">
+            <div><strong>City</strong><p>${App.escapeHtml(record.city || "Not listed")}</p></div>
+            <div><strong>Province</strong><p>${App.escapeHtml(record.province || "Not listed")}</p></div>
+            <div><strong>Age</strong><p>${record.age ?? "Unknown"}</p></div>
+            <div><strong>Missing since</strong><p>${App.formatDate(record.missingSince)}</p></div>
+            <div><strong>Last update</strong><p>${App.formatDate(record.updatedAt)}</p></div>
+            <div><strong>Authority</strong><p>${App.escapeHtml(
+              record.authority.name || "Official authority"
+            )}</p></div>
+          </div>
+          <div class="detail-body">${App.sanitizeHtml(record.summaryHtml) || "<p>No official summary provided.</p>"}</div>
+        </div>
+
+        <div class="inference-card">
+          <div class="detail-section-head"><strong>Unverified signal layer</strong><span>Derived context only</span></div>
+          <p>${App.escapeHtml(record.inferenceSummary)}</p>
+          <div class="geo-chip-row">
+            ${
+              (record.geoContext || [])
+                .map(
+                  (item) =>
+                    `<span class="geo-chip">${App.escapeHtml(item.context_type)} • ${App.escapeHtml(
+                      item.label
+                    )} • ${item.distance_km ?? "?"} km</span>`
+                )
+                .join("") || '<span class="geo-chip">No bundled geospatial context</span>'
+            }
+          </div>
+          <div class="geo-chip-row">
+            ${
+              (record.riskFlags || [])
+                .map((flag) => `<span class="flag-chip">${App.escapeHtml(flag)}</span>`)
+                .join("") || '<span class="flag-chip">No derived flags</span>'
+            }
+            <span class="flag-chip">Elapsed ${App.formatElapsed(record.elapsedDays)}</span>
+            <span class="flag-chip">Estimated current age ${
+              record.estimatedCurrentAge ?? "Unknown"
+            }</span>
+            <span class="flag-chip">${record.sources.length} source trail</span>
+          </div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-head"><strong>Authority contacts</strong><span>Report, do not intervene</span></div>
+          <div class="contact-grid">
+            ${
+              record.authority.url
+                ? `<a class="link-button" href="${record.authority.url}" target="_blank" rel="noopener">Open authority page</a>`
+                : ""
+            }
+            ${
+              record.authority.phone
+                ? `<a class="link-button" href="tel:${App.normalizePhone(
+                    record.authority.phone
+                  )}">Call ${App.escapeHtml(record.authority.phone)}</a>`
+                : ""
+            }
+            ${
+              record.mcsc.email
+                ? `<a class="link-button" href="mailto:${record.mcsc.email}">Email MCSC</a>`
+                : ""
+            }
+          </div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-head"><strong>What to report</strong><span>Checklist</span></div>
+          <ul class="checklist">${record.whatToReport
+            .map((item) => `<li>${App.escapeHtml(item)}</li>`)
+            .join("")}</ul>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-head"><strong>How to help safely</strong><span>Guardrail</span></div>
+          <ul class="checklist">${record.howToHelpSafely
+            .map((item) => `<li>${App.escapeHtml(item)}</li>`)
+            .join("")}</ul>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-head"><strong>Source attribution</strong><span>Transparency</span></div>
+          <div class="stack-list">
+            ${record.sources
+              .map(
+                (source) => `
+                <div class="resource-item">
+                  <div>
+                    <strong>${App.escapeHtml(source.label)}</strong>
+                    <p><a href="${source.source_url}" target="_blank" rel="noopener">${App.escapeHtml(
+                      source.source_url
+                    )}</a></p>
+                  </div>
+                  <span class="source-badge">${source.official ? "Official" : "Public"}</span>
+                </div>
+              `
+              )
+              .join("")}
+          </div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-head"><strong>Timeline</strong><span>${record.timelineEntries.length} entries</span></div>
+          <div class="stack-list">
+            ${record.timelineEntries
+              .map(
+                (entry) => `
+                <div class="timeline-item">
+                  <div>
+                    <strong>${App.escapeHtml(entry.label)}</strong>
+                    <p>${entry.kind === "derived" ? "Derived" : "Official"}</p>
+                  </div>
+                  <span class="source-badge">${App.formatDate(entry.date)}</span>
+                </div>
+              `
+              )
+              .join("")}
+          </div>
+        </div>
+      </div>
+    `;
+
+    const printButton = container.querySelector("#printCaseButton");
+    if (printButton) {
+      printButton.addEventListener("click", () => window.print());
+    }
+  }
+
+  function updateNavigationLinks() {
+    const sharedState = currentFilters();
+    if (elements.evidenceNavLink) {
+      elements.evidenceNavLink.href = App.buildPageHref("./evidence.html", sharedState);
+    }
+    if (elements.openEvidencePage) {
+      elements.openEvidencePage.href = App.buildPageHref("./evidence.html", sharedState);
+    }
+  }
+
+  function renderAll() {
+    const filters = currentFilters();
+    state.filteredCases = App.filterCases(state.cases, filters);
+    if (!state.filteredCases.some((item) => item.id === state.selectedCaseId)) {
+      state.selectedCaseId = state.filteredCases[0] ? state.filteredCases[0].id : null;
+    }
+    filters.selectedCaseId = state.selectedCaseId;
+    routeState = { ...routeState, ...filters };
+    App.writeRouteState(filters);
+
+    const displayRecords = state.filteredCases.length ? state.filteredCases : state.cases;
+    const selected =
+      state.filteredCases.find((item) => item.id === state.selectedCaseId) ||
+      state.cases.find((item) => item.id === state.selectedCaseId) ||
+      null;
+
+    renderCaseList(
+      elements.caseList,
+      state.filteredCases,
+      state.selectedCaseId,
+      state.viewMode,
+      selectCase
+    );
+    App.renderCaseMarkers(
+      state.mapContext,
+      state.filteredCases,
+      state.selectedCaseId,
+      selectCase
+    );
+    renderDetail(elements.detailPanel, selected);
+    renderMetrics(elements.metricsGrid, App.summarizeCases(displayRecords));
+    renderSignalBands(displayRecords);
+    renderSignalQueue(elements.signalQueue, state.filteredCases);
+    renderRecentUpdates(elements.recentUpdatesList, displayRecords);
+    renderProvinceResources(elements.provinceResourcesList, state.cases);
+    renderCharts(displayRecords);
+    renderProvinceStrip(state.filteredCases);
+    elements.resultsCount.textContent = `${state.filteredCases.length} result${
+      state.filteredCases.length === 1 ? "" : "s"
+    }`;
+    updateNavigationLinks();
+  }
+
+  function selectCase(caseId, flyTo) {
+    state.selectedCaseId = caseId;
+    routeState.selectedCaseId = String(caseId);
+    renderAll();
+    if (flyTo) {
+      const marker = state.mapContext.markerIndex.get(caseId);
+      const selected =
+        state.filteredCases.find((item) => item.id === caseId) ||
+        state.cases.find((item) => item.id === caseId);
+      if (marker && selected) {
+        state.mapContext.map.flyTo([selected.latitude, selected.longitude], 8, {
+          duration: App.prefersReducedMotion ? 0 : 0.8,
+        });
+        marker.openPopup();
+      }
+    }
+  }
+
+  function applyDatasetMeta(meta) {
+    const liveMode = meta.dataset_mode === "live-arcgis";
+    elements.dataModeBadge.textContent = liveMode ? "Live source" : "Bundled export";
+    elements.dataModeBadge.classList.toggle("is-live", liveMode);
+    elements.dataModeBadge.classList.toggle("is-static", !liveMode);
+    elements.feedTimestamp.textContent = `${meta.source_name} • ${App.formatDate(
+      meta.generated_at
+    )}`;
+    elements.feedSafetyNotice.textContent = meta.safety_notice || "";
+    document.body.dataset.feedMode = liveMode ? "live" : "static";
+  }
+
+  async function loadAndRender(preferLive) {
+    const dataset = await App.loadDataset(preferLive);
+    state.datasetMeta = dataset.meta;
+    state.referenceLayers = dataset.referenceLayers;
+    state.cases = dataset.cases;
+    state.selectedCaseId = routeState.selectedCaseId
+      ? Number(routeState.selectedCaseId)
+      : dataset.cases[0]
+        ? dataset.cases[0].id
+        : null;
+    applyDatasetMeta(dataset.meta);
+    updateFilterOptions();
+    renderAll();
+  }
+
+  function bindControls() {
+    [
+      elements.searchInput,
+      elements.provinceSelect,
+      elements.citySelect,
+      elements.minAgeInput,
+      elements.maxAgeInput,
+      elements.statusSelect,
+      elements.sortSelect,
+    ].forEach((element) => {
+      element.addEventListener("input", () => {
+        routeState = { ...routeState, ...currentFilters() };
+        updateFilterOptions();
+        renderAll();
+      });
+      element.addEventListener("change", () => {
+        routeState = { ...routeState, ...currentFilters() };
+        updateFilterOptions();
+        renderAll();
+      });
+    });
+
+    document.querySelectorAll(".toggle-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.viewMode = button.dataset.view;
+        routeState.view = state.viewMode;
+        document.querySelectorAll(".toggle-button").forEach((item) => {
+          item.classList.toggle("active", item === button);
+        });
+        renderAll();
+      });
+    });
+
+    elements.fitMapButton.addEventListener("click", () =>
+      App.fitToRecords(state.mapContext, state.filteredCases)
+    );
+    elements.resetFiltersButton.addEventListener("click", () => {
+      routeState = {
+        search: "",
+        province: "",
+        city: "",
+        minAge: "",
+        maxAge: "",
+        status: "",
+        sort: "recency",
+        view: "list",
+        selectedCaseId: "",
+        live: routeState.live,
+        apiBase: routeState.apiBase,
+      };
+      syncControlsFromRoute();
+      updateFilterOptions();
+      renderAll();
+    });
+    elements.liveModeButton.addEventListener("click", async () => {
+      routeState.live = true;
+      await loadAndRender(true);
+    });
+  }
+
+  async function initDashboard() {
+    syncControlsFromRoute();
+    state.mapContext = App.createMap("map", "dark");
+    bindControls();
+    await loadAndRender(routeState.live);
+  }
+
+  initDashboard().catch((error) => {
+    console.error(error);
+    elements.detailPanel.innerHTML =
+      '<div class="empty-state">Unable to load case data right now.</div>';
+    elements.caseList.innerHTML =
+      '<div class="empty-state">Unable to load active profiles right now.</div>';
+    elements.dataModeBadge.textContent = "Load failed";
+    elements.feedTimestamp.textContent = error.message;
+  });
+})();

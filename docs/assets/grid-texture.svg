@@ -1,0 +1,7 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Grid texture">
+  <rect width="400" height="400" fill="#f5efe5"/>
+  <g stroke="#d6c7ae" stroke-width="1">
+    <path d="M0 50H400"/><path d="M0 100H400"/><path d="M0 150H400"/><path d="M0 200H400"/><path d="M0 250H400"/><path d="M0 300H400"/><path d="M0 350H400"/>
+    <path d="M50 0V400"/><path d="M100 0V400"/><path d="M150 0V400"/><path d="M200 0V400"/><path d="M250 0V400"/><path d="M300 0V400"/><path d="M350 0V400"/>
+  </g>
+</svg>

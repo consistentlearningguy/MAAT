@@ -1,0 +1,30 @@
+﻿[
+  {
+    "label": "Covenant House Toronto",
+    "latitude": 43.6644,
+    "longitude": -79.3810,
+    "source_url": "https://covenanthousetoronto.ca/",
+    "jurisdiction": "Ontario"
+  },
+  {
+    "label": "Covenant House Vancouver",
+    "latitude": 49.2822,
+    "longitude": -123.1087,
+    "source_url": "https://www.covenanthousebc.org/",
+    "jurisdiction": "British Columbia"
+  },
+  {
+    "label": "Ndinawemaaganag Endaawaad",
+    "latitude": 49.8954,
+    "longitude": -97.1246,
+    "source_url": "https://newcentre.org/",
+    "jurisdiction": "Manitoba"
+  },
+  {
+    "label": "Dans la rue",
+    "latitude": 45.5262,
+    "longitude": -73.5589,
+    "source_url": "https://danslarue.org/",
+    "jurisdiction": "Quebec"
+  }
+]

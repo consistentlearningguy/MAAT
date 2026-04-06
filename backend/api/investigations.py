@@ -1,263 +1,210 @@
-"""API routes for OSINT investigations and leads.
+"""Investigator-mode routes."""
 
-The API endpoint creates the Investigation record upfront (so it can return
-the ID immediately), then hands off to investigate.run_investigation() which
-is the SINGLE orchestrator — no duplicate code paths.
-"""
+from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
-from typing import Optional
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from loguru import logger
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from backend.core.database import get_db, SessionLocal
-from backend.models.case import MissingCase
-from backend.models.investigation import Investigation, Lead
+from backend.core.config import settings
+from backend.core.database import get_db
+from backend.models.case import Case
+from backend.models.investigation import InvestigationRun, Lead, SearchQueryLog
+from backend.osint.resource_pack import build_case_resource_pack
+from backend.services.investigation_service import InvestigationService
+from backend.services.review_service import ReviewService
 
 router = APIRouter(prefix="/api/investigations", tags=["investigations"])
 
 
-# --- Track running investigations to prevent duplicates ---
-_running_investigations: set[int] = set()  # case_objectids currently being investigated
-_MAX_CONCURRENT_INVESTIGATIONS = 3
+class ReviewPayload(BaseModel):
+    decision: str
+    notes: str | None = None
 
 
-def cleanup_stale_investigations(db: Session) -> int:
-    """Mark stale 'running' investigations as 'failed' on startup.
-
-    If the server crashed or was restarted while investigations were running,
-    those records are stuck in 'running' forever. This cleans them up.
-
-    Returns the number of stale investigations cleaned up.
-    """
-    stale = (
-        db.query(Investigation)
-        .filter(Investigation.status == "running")
-        .all()
-    )
-    count = 0
-    for inv in stale:
-        inv.status = "failed"  # type: ignore[assignment]
-        inv.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
-        inv.error_message = "Server restarted while investigation was running"  # type: ignore[assignment]
-        count += 1
-
-    if count > 0:
-        db.commit()
-        logger.warning(f"Cleaned up {count} stale 'running' investigation(s)")
-
-    return count
+def _ensure_enabled() -> None:
+    if not settings.enable_investigator_mode:
+        raise HTTPException(status_code=403, detail="Investigator mode is disabled.")
 
 
-@router.post("/{case_objectid}")
-async def start_investigation(
-    case_objectid: int,
-    background_tasks: BackgroundTasks,
-    run_usernames: bool = Query(True, description="Run username enumeration"),
-    run_web: bool = Query(True, description="Run web mention scanning"),
-    run_faces: bool = Query(True, description="Run face recognition"),
-    db: Session = Depends(get_db),
-):
-    """Trigger an OSINT investigation for a case.
-
-    This starts the investigation in the background and returns immediately
-    with the investigation ID. Poll GET /api/investigations/{case_objectid}
-    to check status.
-    """
-    # Rate limit concurrent investigations
-    if len(_running_investigations) >= _MAX_CONCURRENT_INVESTIGATIONS:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Too many concurrent investigations (max {_MAX_CONCURRENT_INVESTIGATIONS}). "
-                   "Please wait for one to complete.",
-        )
-
-    # Check case exists
-    case = db.query(MissingCase).filter(MissingCase.objectid == case_objectid).first()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
-
-    if not case.name:
-        raise HTTPException(status_code=400, detail="Case has no name — cannot investigate")
-
-    # Check if already running
-    if case_objectid in _running_investigations:
-        raise HTTPException(
-            status_code=409,
-            detail="Investigation already running for this case"
-        )
-
-    # Create investigation record immediately so we can return its ID
-    investigation = Investigation(
-        case_objectid=case_objectid,
-        status="running",
-        ran_username_search=run_usernames,
-        ran_web_mentions=run_web,
-        ran_face_search=run_faces,
-    )
-    db.add(investigation)
-    db.commit()
-    db.refresh(investigation)
-
-    # Run in background
-    _running_investigations.add(case_objectid)
-    background_tasks.add_task(
-        _run_investigation_background,
-        investigation_id=investigation.id,
-        case_objectid=case_objectid,
-        run_usernames=run_usernames,
-        run_web=run_web,
-        run_faces=run_faces,
-    )
-
-    return {
-        "investigation_id": investigation.id,
-        "status": "running",
-        "message": f"Investigation started for {case.name}",
-    }
+def _get_run_or_404(db: Session, run_id: int) -> InvestigationRun:
+    run = db.get(InvestigationRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Investigation run not found.")
+    return run
 
 
-async def _run_investigation_background(
-    investigation_id: int,
-    case_objectid: int,
-    run_usernames: bool,
-    run_web: bool,
-    run_faces: bool,
-):
-    """Background task that delegates to the single orchestrator.
+def _get_case_or_404(db: Session, case_id: int) -> Case:
+    case = db.get(Case, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    return case
 
-    We create a new DB session here because the FastAPI request session
-    will be closed by the time this runs.
-    """
-    db = SessionLocal()
+
+@router.post("/{case_id}")
+async def run_investigation(case_id: int, db: Session = Depends(get_db)) -> dict:
+    _ensure_enabled()
     try:
-        from backend.analysis.investigate import run_investigation
-
-        # Delegate to the SINGLE orchestrator in investigate.py
-        # Pass the pre-created investigation_id so it doesn't create a duplicate
-        await run_investigation(
-            case_objectid=case_objectid,
-            db=db,
-            investigation_id=investigation_id,
-            run_usernames=run_usernames,
-            run_web=run_web,
-            run_faces=run_faces,
-        )
-    except Exception as e:
-        logger.error(f"Background investigation {investigation_id} failed: {e}")
-        # run_investigation already marks the investigation as "failed" in its
-        # except block, so we only need to handle truly unexpected errors here
-        try:
-            investigation = db.query(Investigation).filter(Investigation.id == investigation_id).first()
-            if investigation and investigation.status != "failed":
-                investigation.status = "failed"  # type: ignore[assignment]
-                investigation.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
-                investigation.error_message = str(e)[:500]  # type: ignore[assignment]
-                db.commit()
-        except Exception:
-            pass
-    finally:
-        _running_investigations.discard(case_objectid)
-        db.close()
+        run = await InvestigationService(db).run_for_case(case_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"run_id": run.id, "status": run.status, "connectors": run.connector_names}
 
 
-@router.get("/{case_objectid}")
-def get_investigations(
-    case_objectid: int,
+@router.get("/cases/{case_id}/runs")
+def list_case_runs(
+    case_id: int,
+    limit: int = Query(default=10, ge=1, le=50),
     db: Session = Depends(get_db),
-):
-    """Get all investigations for a case, most recent first."""
-    investigations = (
-        db.query(Investigation)
-        .filter(Investigation.case_objectid == case_objectid)
-        .order_by(desc(Investigation.started_at))
+) -> dict:
+    _ensure_enabled()
+    runs = (
+        db.query(InvestigationRun)
+        .filter(InvestigationRun.case_id == case_id)
+        .order_by(InvestigationRun.started_at.desc())
+        .limit(limit)
         .all()
     )
-
     return {
-        "case_objectid": case_objectid,
-        "investigations": [inv.to_dict() for inv in investigations],
-        "is_running": case_objectid in _running_investigations,
+        "runs": [
+            {
+                "id": run.id,
+                "case_id": run.case_id,
+                "status": run.status,
+                "connectors": run.connector_names,
+                "started_at": run.started_at.isoformat(),
+                "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+                "lead_count": db.query(Lead).filter(Lead.investigation_run_id == run.id).count(),
+                "query_count": db.query(SearchQueryLog).filter(
+                    SearchQueryLog.investigation_run_id == run.id
+                ).count(),
+            }
+            for run in runs
+        ]
     }
 
 
-@router.get("/{case_objectid}/leads")
-def get_leads(
-    case_objectid: int,
-    lead_type: Optional[str] = Query(None, description="Filter by lead type"),
-    min_confidence: Optional[float] = Query(None, description="Minimum confidence (0.0-1.0)"),
-    reviewed: Optional[bool] = Query(None, description="Filter by review status"),
-    sort_by: str = Query("confidence", description="Sort field (confidence, found_at)"),
-    order: str = Query("desc", description="Sort order"),
-    limit: int = Query(100, ge=1, le=500),
-    offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db),
-):
-    """Get all leads for a case across all investigations."""
-    query = db.query(Lead).filter(Lead.case_objectid == case_objectid)
+@router.get("/cases/{case_id}/resource-pack")
+def get_case_resource_pack(case_id: int, db: Session = Depends(get_db)) -> dict:
+    _ensure_enabled()
+    case = _get_case_or_404(db, case_id)
+    return build_case_resource_pack(case)
 
-    if lead_type:
-        query = query.filter(Lead.lead_type == lead_type)
-    if min_confidence is not None:
-        query = query.filter(Lead.confidence >= min_confidence)
-    if reviewed is not None:
-        query = query.filter(Lead.reviewed == reviewed)
 
-    total = query.count()
-
-    # Sorting
-    if sort_by == "confidence":
-        sort_col = Lead.confidence
-    elif sort_by == "found_at":
-        sort_col = Lead.found_at
-    elif sort_by == "content_date":
-        sort_col = Lead.content_date
-    else:
-        sort_col = Lead.confidence
-
-    if order.lower() == "asc":
-        query = query.order_by(sort_col.asc())
-    else:
-        query = query.order_by(sort_col.desc())
-
-    leads = query.offset(offset).limit(limit).all()
-
+@router.get("/runs/{run_id}")
+def get_run(run_id: int, db: Session = Depends(get_db)) -> dict:
+    _ensure_enabled()
+    run = _get_run_or_404(db, run_id)
+    leads = db.query(Lead).filter(Lead.investigation_run_id == run_id)
+    query_logs = db.query(SearchQueryLog).filter(SearchQueryLog.investigation_run_id == run_id)
+    total_leads = leads.count()
+    reviewed_leads = leads.filter(Lead.reviewed.is_(True)).count()
+    high_confidence = leads.filter(Lead.confidence >= 0.6).count()
+    failed_queries = query_logs.filter(SearchQueryLog.status == "failed").count()
+    warning_queries = query_logs.filter(SearchQueryLog.status == "warning").count()
     return {
-        "case_objectid": case_objectid,
-        "total": total,
-        "leads": [lead.to_dict() for lead in leads],
+        "id": run.id,
+        "case_id": run.case_id,
+        "status": run.status,
+        "connectors": run.connector_names,
+        "facts_summary": run.facts_summary,
+        "inference_summary": run.inference_summary,
+        "error_message": run.error_message,
+        "started_at": run.started_at.isoformat(),
+        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+        "stats": {
+            "total_leads": total_leads,
+            "reviewed_leads": reviewed_leads,
+            "unreviewed_leads": total_leads - reviewed_leads,
+            "high_confidence_leads": high_confidence,
+            "query_logs": query_logs.count(),
+            "failed_queries": failed_queries,
+            "warning_queries": warning_queries,
+        },
     }
 
 
-class LeadReviewBody(BaseModel):
-    reviewed: bool
-    is_actionable: Optional[bool] = None
-    review_notes: Optional[str] = None
-
-
-@router.patch("/leads/{lead_id}")
-def review_lead(
-    lead_id: int,
-    body: LeadReviewBody,
+@router.get("/runs/{run_id}/leads")
+def get_run_leads(
+    run_id: int,
+    review_status: str | None = None,
+    min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
+    limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
-):
-    """Review a lead — mark it as reviewed, actionable or noise, with notes."""
-    lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
+) -> dict:
+    _ensure_enabled()
+    _get_run_or_404(db, run_id)
+    statement = db.query(Lead).filter(
+        Lead.investigation_run_id == run_id,
+        Lead.confidence >= min_confidence,
+    )
+    if review_status:
+        statement = statement.filter(Lead.review_status == review_status)
+    leads = statement.order_by(Lead.confidence.desc(), Lead.found_at.desc()).limit(limit).all()
+    return {
+        "leads": [
+            {
+                "id": lead.id,
+                "title": lead.title,
+                "summary": lead.summary,
+                "content_excerpt": lead.content_excerpt,
+                "source_name": lead.source_name,
+                "source_kind": lead.source_kind,
+                "source_url": lead.source_url,
+                "query_used": lead.query_used,
+                "location_text": lead.location_text,
+                "category": lead.category,
+                "confidence": lead.confidence,
+                "source_trust": lead.source_trust,
+                "corroboration_count": lead.corroboration_count,
+                "rationale": lead.rationale,
+                "review_status": lead.review_status,
+                "reviewed": lead.reviewed,
+                "human_reason": lead.human_reason,
+                "found_at": lead.found_at.isoformat(),
+                "published_at": lead.published_at.isoformat() if lead.published_at else None,
+                "latitude": lead.latitude,
+                "longitude": lead.longitude,
+            }
+            for lead in leads
+        ]
+    }
 
-    lead.reviewed = body.reviewed  # type: ignore[assignment]
-    if body.is_actionable is not None:
-        lead.is_actionable = body.is_actionable  # type: ignore[assignment]
-    if body.review_notes is not None:
-        lead.review_notes = body.review_notes  # type: ignore[assignment]
 
-    db.commit()
-    db.refresh(lead)
+@router.get("/runs/{run_id}/query-logs")
+def get_run_query_logs(run_id: int, db: Session = Depends(get_db)) -> dict:
+    _ensure_enabled()
+    _get_run_or_404(db, run_id)
+    query_logs = (
+        db.query(SearchQueryLog)
+        .filter(SearchQueryLog.investigation_run_id == run_id)
+        .order_by(SearchQueryLog.requested_at.desc())
+        .all()
+    )
+    return {
+        "query_logs": [
+            {
+                "id": log.id,
+                "connector_name": log.connector_name,
+                "source_kind": log.source_kind,
+                "query_used": log.query_used,
+                "requested_at": log.requested_at.isoformat(),
+                "completed_at": log.completed_at.isoformat() if log.completed_at else None,
+                "status": log.status,
+                "http_status": log.http_status,
+                "result_count": log.result_count,
+                "notes": log.notes,
+            }
+            for log in query_logs
+        ]
+    }
 
-    return lead.to_dict()
+
+@router.patch("/leads/{lead_id}/review")
+def review_lead(lead_id: int, payload: ReviewPayload, db: Session = Depends(get_db)) -> dict:
+    _ensure_enabled()
+    try:
+        lead = ReviewService(db).review_lead(lead_id, payload.decision, payload.notes)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"lead_id": lead.id, "review_status": lead.review_status}

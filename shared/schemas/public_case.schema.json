@@ -1,0 +1,36 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://osint-missing-persons-ca.example/schemas/public_case.schema.json",
+  "title": "Public Case Export",
+  "type": "object",
+  "required": ["meta", "cases"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["generated_at", "dataset_mode", "source_name"],
+      "properties": {
+        "generated_at": { "type": "string", "format": "date-time" },
+        "dataset_mode": { "type": "string" },
+        "source_name": { "type": "string" },
+        "safety_notice": { "type": "string" }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "slug", "facts", "inference", "sources"],
+        "properties": {
+          "id": { "type": "integer" },
+          "slug": { "type": "string" },
+          "facts": { "type": "object" },
+          "inference": { "type": "object" },
+          "sources": { "type": "array" },
+          "geo_context": { "type": "array" },
+          "resource_links": { "type": "array" },
+          "photos": { "type": "array" }
+        }
+      }
+    }
+  }
+}

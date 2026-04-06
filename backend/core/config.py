@@ -1,63 +1,96 @@
-"""Application configuration loaded from environment variables."""
+﻿"""Environment-driven settings and feature flags."""
+
+from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
+
 from dotenv import load_dotenv
 
-# Load .env file from project root
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+from shared.constants.flags import FEATURE_FLAGS
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
 
 
+def _bool_env(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+@dataclass(slots=True)
 class Settings:
-    """Application settings."""
+    """Runtime settings."""
 
-    # Paths
-    DATA_DIR: Path = Path(os.getenv("DATA_DIR", str(PROJECT_ROOT / "data")))
-    IMAGES_DIR: Path = DATA_DIR / "images"
-    FACES_DIR: Path = DATA_DIR / "faces"
-
-    # Database
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL", f"sqlite:///{DATA_DIR / 'db.sqlite'}"
-    )
-
-    # MCSC ArcGIS FeatureServer
-    MCSC_FEATURE_SERVER_URL: str = os.getenv(
+    project_root: Path = PROJECT_ROOT
+    data_dir: Path = Path(os.getenv("DATA_DIR", str(PROJECT_ROOT / "data")))
+    docs_dir: Path = PROJECT_ROOT / "docs"
+    docs_data_dir: Path = docs_dir / "data"
+    reference_dir: Path = data_dir / "reference"
+    cache_dir: Path = data_dir / "cache"
+    export_dir: Path = data_dir / "exports"
+    database_url: str = os.getenv("DATABASE_URL", f"sqlite:///{PROJECT_ROOT / 'data' / 'db.sqlite'}")
+    host: str = os.getenv("HOST", "127.0.0.1")
+    port: int = int(os.getenv("PORT", "8000"))
+    debug: bool = _bool_env("DEBUG", False)
+    sync_interval_minutes: int = int(os.getenv("SYNC_INTERVAL_MINUTES", "60"))
+    public_export_path: Path = docs_data_dir / "public-cases.json"
+    mcsc_feature_server_url: str = os.getenv(
         "MCSC_FEATURE_SERVER_URL",
         "https://services.arcgis.com/Sv9ZXFjH5h1fYAaI/arcgis/rest/services/"
         "Missing_Children_Cases_View_Master/FeatureServer/0",
     )
+    request_timeout_seconds: float = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "25"))
+    connector_timeout_seconds: float = float(os.getenv("CONNECTOR_TIMEOUT_SECONDS", "20"))
+    connector_delay_seconds: float = float(os.getenv("CONNECTOR_DELAY_SECONDS", "0.4"))
+    public_dashboard_base_url: str = os.getenv("PUBLIC_DASHBOARD_BASE_URL", "")
+    searxng_url: str | None = os.getenv("SEARXNG_URL")
+    gdelt_doc_api_url: str = os.getenv(
+        "GDELT_DOC_API_URL",
+        "https://api.gdeltproject.org/api/v2/doc/doc",
+    )
+    spiderfoot_url: str | None = os.getenv("SPIDERFOOT_URL")
+    theharvester_binary: str | None = os.getenv("THEHARVESTER_BINARY")
+    reconng_binary: str | None = os.getenv("RECONNG_BINARY")
+    onionsearch_binary: str | None = os.getenv("ONIONSEARCH_BINARY")
+    tor_proxy_url: str | None = os.getenv("TOR_PROXY_URL")
+    ahmia_search_url: str = os.getenv("AHMIA_SEARCH_URL", "https://ahmia.fi/search/")
+    reverse_image_provider_mode: str | None = os.getenv("REVERSE_IMAGE_PROVIDER_MODE")
+    reverse_image_provider_url: str | None = os.getenv("REVERSE_IMAGE_PROVIDER_URL")
+    reverse_image_mock_file: Path = Path(
+        os.getenv(
+            "REVERSE_IMAGE_MOCK_FILE",
+            str(PROJECT_ROOT / "data" / "reference" / "reverse_image_mock_results.json"),
+        )
+    )
+    enable_mock_connector: bool = _bool_env("ENABLE_MOCK_CONNECTOR", False)
 
-    # Sync
-    SYNC_INTERVAL_MINUTES: int = int(os.getenv("SYNC_INTERVAL_MINUTES", "60"))
+    enable_investigator_mode: bool = _bool_env("ENABLE_INVESTIGATOR_MODE", False)
+    enable_clear_web_connectors: bool = _bool_env("ENABLE_CLEAR_WEB_CONNECTORS", False)
+    enable_public_profile_checks: bool = _bool_env("ENABLE_PUBLIC_PROFILE_CHECKS", False)
+    enable_reverse_image_hooks: bool = _bool_env("ENABLE_REVERSE_IMAGE_HOOKS", False)
+    enable_local_face_workflow: bool = _bool_env("ENABLE_LOCAL_FACE_WORKFLOW", False)
+    enable_dark_web_connectors: bool = _bool_env("ENABLE_DARK_WEB_CONNECTORS", False)
+    enable_experimental_connectors: bool = _bool_env("ENABLE_EXPERIMENTAL_CONNECTORS", False)
 
-    # Server
-    HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("PORT", "8000"))
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
+    def ensure_directories(self) -> None:
+        for path in (
+            self.data_dir,
+            self.docs_data_dir,
+            self.reference_dir,
+            self.cache_dir,
+            self.export_dir,
+        ):
+            path.mkdir(parents=True, exist_ok=True)
 
-    # Face recognition (Phase 3)
-    # Detection model: "hog" (faster, CPU) or "cnn" (more accurate, GPU recommended)
-    FACE_DETECTION_MODEL: str = os.getenv("FACE_DETECTION_MODEL", "hog")
-    # Distance threshold for considering two faces the same person
-    # Lower = stricter. face_recognition default is 0.6.
-    FACE_MATCH_THRESHOLD: float = float(os.getenv("FACE_MATCH_THRESHOLD", "0.55"))
-    # Number of times to upsample image when detecting faces (higher = find smaller faces)
-    FACE_UPSAMPLE_COUNT: int = int(os.getenv("FACE_UPSAMPLE_COUNT", "1"))
-    # Padding (%) around face crop for context
-    FACE_CROP_PADDING: float = float(os.getenv("FACE_CROP_PADDING", "0.25"))
-
-    # Reverse image search API keys (Phase 3 — optional)
-    PIMEYES_API_KEY: str | None = os.getenv("PIMEYES_API_KEY")
-    GOOGLE_VISION_API_KEY: str | None = os.getenv("GOOGLE_VISION_API_KEY")
-    TINEYE_API_KEY: str | None = os.getenv("TINEYE_API_KEY")
-
-    def __init__(self):
-        # Ensure data directories exist
-        self.DATA_DIR.mkdir(parents=True, exist_ok=True)
-        self.IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-        self.FACES_DIR.mkdir(parents=True, exist_ok=True)
+    @property
+    def feature_flags(self) -> dict[str, bool]:
+        return {name: getattr(self, name) for name in FEATURE_FLAGS}
 
 
 settings = Settings()
+settings.ensure_directories()
+

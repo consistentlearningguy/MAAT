@@ -1,0 +1,30 @@
+﻿[
+  {
+    "label": "Toronto Pearson International Airport",
+    "latitude": 43.6777,
+    "longitude": -79.6248,
+    "source_url": "https://www.torontopearson.com/",
+    "jurisdiction": "Ontario"
+  },
+  {
+    "label": "Vancouver International Airport",
+    "latitude": 49.1947,
+    "longitude": -123.1792,
+    "source_url": "https://www.yvr.ca/",
+    "jurisdiction": "British Columbia"
+  },
+  {
+    "label": "Winnipeg Richardson International Airport",
+    "latitude": 49.9100,
+    "longitude": -97.2399,
+    "source_url": "https://www.waa.ca/",
+    "jurisdiction": "Manitoba"
+  },
+  {
+    "label": "Montreal-Trudeau International Airport",
+    "latitude": 45.4706,
+    "longitude": -73.7408,
+    "source_url": "https://www.admtl.com/",
+    "jurisdiction": "Quebec"
+  }
+]

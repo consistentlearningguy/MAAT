@@ -1,32 +1,24 @@
-"""API routes for data synchronization."""
+﻿"""Sync and export routes."""
 
-from fastapi import APIRouter, Depends, Query
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from backend.core.config import settings
 from backend.core.database import get_db
-from backend.ingestion.mcsc_client import mcsc_client
-from backend.models.case import SyncLog
+from backend.services.case_service import CaseService
+from backend.services.export_service import ExportService
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
 
-@router.post("")
-async def trigger_sync(db: Session = Depends(get_db)):
-    """Trigger a manual data sync from MCSC."""
-    result = await mcsc_client.sync_all_cases(db=db)
-    return result
+@router.post("/cases")
+async def sync_cases(db: Session = Depends(get_db)) -> dict:
+    return await CaseService(db).sync_from_mcsc()
 
 
-@router.get("/history")
-def get_sync_history(
-    limit: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
-):
-    """Get recent sync log entries."""
-    logs = (
-        db.query(SyncLog)
-        .order_by(SyncLog.started_at.desc())
-        .limit(limit)
-        .all()
-    )
-    return {"logs": [log.to_dict() for log in logs]}
+@router.post("/public-export")
+def export_public_data(db: Session = Depends(get_db)) -> dict:
+    payload = ExportService(db).write_public_export(settings.public_export_path)
+    return {"path": str(settings.public_export_path), "cases": len(payload["cases"])}
