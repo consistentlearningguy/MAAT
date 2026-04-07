@@ -4,7 +4,7 @@ OSINT intelligence platform for Canadian missing children cases. Named after Ma'
 
 **The end goal: find the missing kids and notify authorities so we can actually help.**
 
-**[VIEW LIVE DASHBOARD](https://consistentlearningguy.github.io/osint-missing-persons-ca/)**
+**[VIEW LIVE DASHBOARD](https://consistentlearningguy.github.io/MAAT/)**
 
 ## What MAAT Does
 
