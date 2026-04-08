@@ -5,8 +5,8 @@
 
 // ─── Configuration ───
 const CONFIG = {
-  // Backend API — try localhost first, then common alternatives
-  API_URLS: ["http://localhost:8000", "http://127.0.0.1:8000"],
+  // Backend API — try Render hosted backend first, then localhost for dev
+  API_URLS: ["https://maat-backend.onrender.com", "http://localhost:8000", "http://127.0.0.1:8000"],
   // ArcGIS direct feed for fallback
   ARCGIS_URL: "https://services.arcgis.com/Sv9ZXFjH5h1fYAaI/arcgis/rest/services/Missing_Children_Cases_View_Master/FeatureServer/0",
   // Bundled data fallback
@@ -66,9 +66,15 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 // ═══════════════════════════════════════════════════════════
 
 async function detectApi() {
+  // Try local backends first (fast timeout), then remote (longer for cold starts)
   for (const url of CONFIG.API_URLS) {
+    const isRemote = url.startsWith("https://");
+    const timeout = isRemote ? 60000 : 3000;
     try {
-      const res = await fetch(`${url}/healthz`, { signal: AbortSignal.timeout(3000) });
+      if (isRemote) {
+        showToast("Connecting to hosted backend… (may take a moment on first load)", "info");
+      }
+      const res = await fetch(`${url}/healthz`, { signal: AbortSignal.timeout(timeout) });
       if (res.ok) {
         state.apiBase = url;
         state.apiOnline = true;
