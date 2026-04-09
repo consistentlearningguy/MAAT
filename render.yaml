@@ -16,3 +16,9 @@ services:
         value: sqlite:///data/db.sqlite
       - key: SYNC_INTERVAL_MINUTES
         value: "60"
+      - key: ENABLE_INVESTIGATOR_MODE
+        value: "true"
+      - key: ENABLE_CLEAR_WEB_CONNECTORS
+        value: "true"
+      - key: ENABLE_PUBLIC_PROFILE_CHECKS
+        value: "true"
