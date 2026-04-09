@@ -31,13 +31,17 @@ const STATUS_LABELS = {
 const CONNECTORS = [
   { id: "official-artifacts", name: "Official Sources", icon: "🏛️" },
   { id: "canada-missing-xref", name: "Canada Missing XRef", icon: "🇨🇦" },
+  { id: "canadian-news-media", name: "Canadian News (CBC/CTV/Global)", icon: "📺" },
   { id: "google-news-rss", name: "Google News RSS", icon: "📰" },
   { id: "bing-news-rss", name: "Bing News RSS", icon: "📡" },
   { id: "duckduckgo-html", name: "DuckDuckGo", icon: "🦆" },
   { id: "reddit-search", name: "Reddit Search", icon: "💬" },
   { id: "wayback-machine", name: "Wayback Machine", icon: "🏛️" },
   { id: "gdelt-doc", name: "GDELT Doc API", icon: "🌐" },
-  { id: "reverse-image", name: "Reverse Image Search", icon: "🔍" },
+  { id: "reverse-image-hook", name: "Reverse Image Search", icon: "🔍" },
+  { id: "social-profiler", name: "Social Media Profiler", icon: "👤" },
+  { id: "network-analysis", name: "Network Analysis", icon: "🕸️" },
+  { id: "ahmia", name: "Ahmia Index", icon: "🧅" },
   { id: "geospatial", name: "Geospatial Analysis", icon: "🗺️" },
 ];
 
@@ -1242,7 +1246,27 @@ async function runInvestigation() {
   
   showToast("Investigation started. OSINT connectors are running…", "info");
 
-  const data = await api(`/api/investigations/${state.selectedCaseId}`, { method: "POST" });
+  let data = null;
+  try {
+    const res = await fetch(`${state.apiBase}/api/investigations/${state.selectedCaseId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (res.status === 403) {
+      const err = await res.json().catch(() => ({}));
+      const detail = err.detail || "Investigator mode is disabled.";
+      btn.classList.remove("is-running");
+      btn.innerHTML = `
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"/></svg>
+        Run Investigation`;
+      showToast(`Backend: ${detail} Set ENABLE_INVESTIGATOR_MODE=true in your Render environment.`, "error");
+      return;
+    }
+    if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
+    data = await res.json();
+  } catch (err) {
+    console.error("Investigation error:", err);
+  }
   
   btn.classList.remove("is-running");
   btn.innerHTML = `
@@ -1254,7 +1278,7 @@ async function runInvestigation() {
     // Reload runs
     await loadCaseRuns(state.selectedCaseId);
   } else {
-    showToast("Investigation failed. Check if the backend is running.", "error");
+    showToast("Investigation failed. Check backend logs for details.", "error");
   }
 }
 

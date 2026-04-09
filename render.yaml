@@ -22,3 +22,9 @@ services:
         value: "true"
       - key: ENABLE_PUBLIC_PROFILE_CHECKS
         value: "true"
+      - key: ENABLE_REVERSE_IMAGE_HOOKS
+        value: "true"
+      - key: REVERSE_IMAGE_PROVIDER_MODE
+        value: "links"
+      - key: ENABLE_DARK_WEB_CONNECTORS
+        value: "true"
